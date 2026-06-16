@@ -44,7 +44,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5! h-auto! overflow-visible!">
               <Link href="/system" className="flex items-center gap-3 px-3 py-2 whitespace-nowrap">
                 <Image
-                  src="/yebichu-logo.png"
+                  src="/yebichu-logo.svg"
                   alt="YEBICHU"
                   width={32}
                   height={28}

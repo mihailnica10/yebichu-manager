@@ -92,9 +92,9 @@ function generateMgmtComposeContent(name: string, password: string): string {
     restart: unless-stopped
     network_mode: bridge
     ports:
-      - 5901
-      - 6080
-      - 8090
+      - 127.0.0.1::5901
+      - 127.0.0.1::6080
+      - 127.0.0.1::8090
     volumes:
       - ${SHARED_DIR}:/mt5-shared
       - ${instDir}/data:/mt5-instance

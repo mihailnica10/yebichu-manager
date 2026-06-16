@@ -87,7 +87,7 @@ function SplashScreen() {
   return (
     <div className="flex flex-col items-center gap-6 py-16">
       <Image
-        src="/yebichu-logo.png"
+        src="/yebichu-logo.svg"
         alt="YEBICHU"
         width={64}
         height={56}

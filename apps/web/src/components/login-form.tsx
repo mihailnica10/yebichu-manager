@@ -53,7 +53,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
         <CardHeader className="text-center pt-6 md:pt-4">
           <div className="flex flex-col items-center gap-2">
             <Image
-              src="/yebichu-logo.png"
+              src="/yebichu-logo.svg"
               alt="YEBICHU"
               width={48}
               height={44}

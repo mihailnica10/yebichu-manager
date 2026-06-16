@@ -162,6 +162,78 @@ start_minio() {
   log "MinIO bucket created"
 }
 
+install_mt5() {
+  local mt5_dir="${SHARED_DIR}/MetaTrader 5"
+  if [ -f "${mt5_dir}/terminal64.exe" ]; then
+    log "MT5 already installed in shared directory"
+    return
+  fi
+
+  warn "MetaTrader 5 not found. Downloading and installing..."
+
+  # Create a temporary container to install MT5 via Wine
+  local tmp_container="mt5-installer-$$"
+  docker rm -f "$tmp_container" 2>/dev/null || true
+
+  docker run -d \
+    --name "$tmp_container" \
+    -v "${SHARED_DIR}:/mt5-shared" \
+    -e PASSWORD=install \
+    -e INSTANCE_NAME=installer \
+    -e DISPLAY=:1 \
+    -e MANAGEMENT_MODE=true \
+    mt5-tigervnc:latest \
+    sleep 3600
+
+  # Wait for container to be ready
+  sleep 10
+
+  # Download MT5 installer
+  docker exec "$tmp_container" bash -c '
+    echo "Downloading MT5..."
+    curl -sL "https://download.mql5.com/cdn/web/14115/mt5/mt5webinstall.exe" -o /tmp/mt5setup.exe
+    echo "Download complete ($(stat -c%s /tmp/mt5setup.exe) bytes)"
+  '
+
+  # Install MT5 via Wine
+  docker exec "$tmp_container" bash -c '
+    export WINEPREFIX=/config/.wine
+    export WINEARCH=win64
+    export DISPLAY=:1
+    export MT5_DIR="/config/.wine/drive_c/Program Files/MetaTrader 5"
+
+    echo "Installing MT5 (this may take 2-3 minutes)..."
+    wine /tmp/mt5setup.exe /auto /portable /lang:en /dir:"Z:\config\.wine\drive_c\Program Files\MetaTrader 5" 2>/dev/null
+
+    # Wait for installation to finish
+    for i in $(seq 1 60); do
+      if [ -f "$MT5_DIR/terminal64.exe" ]; then
+        echo "MT5 installed successfully"
+        break
+      fi
+      sleep 5
+    done
+  '
+
+  # Copy to shared directory
+  docker exec "$tmp_container" bash -c '
+    export MT5_DIR="/config/.wine/drive_c/Program Files/MetaTrader 5"
+    mkdir -p /mt5-shared/MetaTrader\ 5
+    echo "Copying MT5 files to shared directory..."
+    cp -r "$MT5_DIR"/* /mt5-shared/MetaTrader\ 5/ 2>/dev/null || true
+    echo "Copy complete"
+  '
+
+  # Cleanup
+  docker rm -f "$tmp_container" >/dev/null 2>&1 || true
+
+  if [ -f "${mt5_dir}/terminal64.exe" ]; then
+    log "MetaTrader 5 installed (${mt5_dir}/terminal64.exe)"
+  else
+    warn "MT5 installation may have failed. You can install manually by placing MT5 files in ${mt5_dir}"
+  fi
+}
+
 install_deps_and_build() {
   cd "$INSTALL_DIR"
   warn "Installing project dependencies..."
@@ -314,6 +386,7 @@ install_bun
 setup_directories
 clone_project
 build_docker_image
+install_mt5
 start_minio
 install_deps_and_build
 create_env_file
