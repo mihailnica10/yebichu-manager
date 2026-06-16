@@ -116,8 +116,8 @@ export function authRoutes(app: OpenAPIHono) {
 
     await logAudit("sign_in", user.id, "user", String(user.id), { email: user.email });
 
-    return c.json({ user: { id: user.id, email: user.email, name: user.name } }, 200, {
-      "Set-Cookie": `mt5.session=${token}; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
+return c.json({ user: { id: user.id, email: user.email, name: user.name } }, 200, {
+      "Set-Cookie": `mt5.session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
     });
   });
 
@@ -150,7 +150,7 @@ export function authRoutes(app: OpenAPIHono) {
     await logAudit("sign_up", inserted.id, "user", String(inserted.id), { email: inserted.email });
 
     return c.json({ user: { id: inserted.id, email: inserted.email, name: inserted.name } }, 201, {
-      "Set-Cookie": `mt5.session=${token}; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
+      "Set-Cookie": `mt5.session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
     });
   });
 
@@ -162,7 +162,7 @@ export function authRoutes(app: OpenAPIHono) {
     const actorId = await getActorId(c);
     await logAudit("sign_out", actorId, "user", actorId ? String(actorId) : undefined);
     return c.json({ status: "ok" }, 200, {
-      "Set-Cookie": `mt5.session=; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax; Path=/; Max-Age=0`,
+      "Set-Cookie": `mt5.session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
     });
   });
 
