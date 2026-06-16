@@ -123,6 +123,7 @@ function spawnDockerEvents() {
 
 spawnDockerEvents();
 
-httpServer.listen(PORT, () => {
-  console.log(`[socket] Server running on port ${PORT}`);
+const HOST = process.env.SOCKET_HOST || "127.0.0.1";
+httpServer.listen(PORT, HOST, () => {
+  console.log(`[socket] Server running on ${HOST}:${PORT}`);
 });
