@@ -443,3 +443,10 @@ export async function fetchBridgeHealth(instanceName: string) {
     return null;
   }
 }
+
+export async function bridgeSyncPull(
+  instanceName: string,
+  configSets: { id: number; version: number; setType: string }[],
+): Promise<any> {
+  return request<any>(instanceName, "/sync/pull", undefined, { configSets });
+}

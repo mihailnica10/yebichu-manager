@@ -1,6 +1,7 @@
 "use client";
 import { LoginForm } from "@/components/login-form";
 import { useAuthSession } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -9,9 +10,16 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && user) {
+    if (isLoading) return;
+    if (user) {
       router.push("/instances");
+      return;
     }
+    api.get("/setup/status").then((res) => {
+      if (!res.data.completed && !res.data.hasUsers) {
+        router.replace("/setup");
+      }
+    }).catch(() => {});
   }, [user, isLoading, router]);
 
   if (isLoading) return null;

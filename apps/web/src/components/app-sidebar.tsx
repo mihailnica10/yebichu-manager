@@ -26,12 +26,12 @@ import type * as React from "react";
 const navMain = [
   { title: "Dashboard", url: "/system", icon: <ChartColumnIcon /> },
   { title: "Instances", url: "/instances", icon: <ServerIcon /> },
-  { title: "Profiles", url: "/profiles", icon: <FileJsonIcon /> },
+
 ];
 
 const navSecondary = [
   { title: "Audit Log", url: "/audit", icon: <FileTextIcon /> },
-  { title: "Settings", url: "#", icon: <Settings2Icon /> },
+  { title: "Settings", url: "/settings", icon: <Settings2Icon /> },
   { title: "Get Help", url: "#", icon: <CircleHelpIcon /> },
 ];
 

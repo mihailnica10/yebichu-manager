@@ -81,6 +81,74 @@ const checkDockerRoute = createRoute({
   },
 });
 
+const InstallDockerResponse = z.object({
+  status: z.string(),
+  distro: z.string(),
+  version: z.string(),
+});
+
+const installDockerRoute = createRoute({
+  method: "post",
+  path: "/install/docker",
+  responses: {
+    200: {
+      content: { "application/json": { schema: InstallDockerResponse } },
+      description: "Docker installed",
+    },
+    401: { description: "Unauthorized" },
+    500: { description: "Installation failed" },
+  },
+});
+
+function detectDistro(): string {
+  try {
+    const osRelease = execSync("cat /etc/os-release", { encoding: "utf-8" });
+    const match = osRelease.match(/^ID=([\w.]+)/m);
+    if (match) return match[1].toLowerCase();
+  } catch {}
+  return "unknown";
+}
+
+function installDockerSafely(): { output: string; version: string } {
+  const distro = detectDistro();
+
+  const installCmd: Record<string, string> = {
+    ubuntu:
+      "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-plugin",
+    debian:
+      "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-plugin",
+    fedora: "dnf install -y -q docker docker-compose-plugin",
+    centos: "dnf install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin",
+    rhel: "dnf install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin",
+    arch: "pacman -S --noconfirm docker docker-compose-plugin",
+    opensuse: "zypper install -y docker docker-compose-plugin",
+    alpine: "apk add docker docker-compose",
+  };
+
+  const cmd = installCmd[distro];
+  if (!cmd) {
+    throw new Error(
+      `Unsupported distro "${distro}". Try: curl -fsSL https://get.docker.com | sh`,
+    );
+  }
+
+  const output = execSync(cmd, {
+    encoding: "utf-8",
+    timeout: 120_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
+
+  try {
+    execSync("systemctl start docker 2>/dev/null || service docker start 2>/dev/null || true", {
+      encoding: "utf-8",
+      timeout: 10_000,
+    });
+  } catch {}
+
+  const version = getDockerVersion();
+  return { output, version };
+}
+
 export function installRoutes(app: OpenAPIHono) {
   app.openapi(statusRoute, async (c) => {
     const actorId = await getActorId(c);
@@ -152,6 +220,18 @@ export function installRoutes(app: OpenAPIHono) {
       });
     } catch (err: any) {
       return c.json({ error: "Docker not available", details: String(err) }, 503);
+    }
+  });
+
+  app.openapi(installDockerRoute, async (c) => {
+    const actorId = await getActorId(c);
+    if (!actorId) return c.json({ error: "unauthorized" }, 401);
+    try {
+      const { version } = installDockerSafely();
+      const distro = detectDistro();
+      return c.json({ status: "installed", distro, version });
+    } catch (err: any) {
+      return c.json({ error: "Installation failed", details: String(err) }, 500);
     }
   });
 }

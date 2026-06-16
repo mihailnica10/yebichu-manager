@@ -62,7 +62,7 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     pip3 install --break-system-packages --no-cache-dir \
     mt5linux rpyc pyxdg \
     fastapi uvicorn pydantic \
-    pywinauto
+    pywinauto minio
 
 # Layer 5: App config files (.desktop launchers, panel layout)
 RUN mkdir -p /usr/share/applications && \

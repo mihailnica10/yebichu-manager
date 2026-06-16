@@ -4,18 +4,12 @@ from types import SimpleNamespace
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from rpa import execute_sequence, focus_mt5, list_windows, click_later
-from rpa.engine import _xdo_click, _xdo_search
-from rpa.workflows import (
-    search_broker, sign_in_to_account, dismiss_liveupdate,
-    start_liveupdate_watchdog, discover_servers,
-    _wine_cmd,
-)
+
 
 logger = logging.getLogger("mt5-bridge")
 
@@ -120,7 +114,6 @@ async def lifespan(app: FastAPI):
         logger.info("MT5 connected successfully")
     else:
         logger.error("All MT5 initialization attempts failed")
-    start_liveupdate_watchdog(interval=15.0)
     yield
     if _initialized:
         _get_mt5().shutdown()
@@ -510,13 +503,6 @@ class OrderCalcProfitRequest(BaseModel):
     price: float = Field(description="Price")
     price_close: float = Field(description="Close price")
 
-
-class RPAAction(BaseModel):
-    action_type: str
-    payload: str = ""
-
-class RPASequence(BaseModel):
-    sequence: list[RPAAction]
 
 # ---------------------------------------------------------------------------
 # Connection Management
@@ -1393,169 +1379,182 @@ async def get_health():
 
 
 # ---------------------------------------------------------------------------
-# RPA Routes
+# Entrypoint
 # ---------------------------------------------------------------------------
 
 
-@app.post("/v1/rpa/execute")
-async def rpa_execute(body: RPASequence):
-    """Execute an arbitrary RPA macro sequence against the MT5 GUI."""
+@app.post("/sync/pull")
+async def sync_pull(body: dict = {}):
+    """Pull config sets from MinIO and apply to MT5 directory."""
+    import subprocess
+    import os
+    import base64
+    
+    config_sets = body.get("configSets", [])
+    results = []
+    mt5_dir = os.environ.get("MT5_DIR", "/config/.wine/drive_c/Program Files/MetaTrader 5")
+    endpoint = os.environ.get("MINIO_ENDPOINT", "minio:9000")
+    access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
+    secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
+    bucket = os.environ.get("MINIO_BUCKET", "mt5-configs")
+    
+    for cs in config_sets:
+        try:
+            set_id = cs.get("id")
+            version = cs.get("version", "current")
+            set_type = cs.get("setType", "full")
+            
+            # Map set type to target directory
+            type_paths = {
+                "charts": "Profiles/Charts",
+                "templates": "Profiles/Templates",
+                "symbolsets": "Profiles/SymbolSets",
+                "mql5-experts": "MQL5/Experts",
+                "mql5-indicators": "MQL5/Indicators",
+                "mql5-include": "MQL5/Include",
+                "mql5-scripts": "MQL5/Scripts",
+                "mql5-libraries": "MQL5/Libraries",
+                "full": "",
+            }
+            
+            # Download from MinIO using HTTP API (no extra deps)
+            import urllib.request
+            import json
+            
+            # Use MinIO REST API directly
+            minio_url = f"http://{endpoint}/{bucket}/config-sets/{set_id}/v{version}/"
+            # For simplicity, list objects via API
+            list_url = f"http://{endpoint}/{bucket}/?prefix=config-sets/{set_id}/v{version}/&list-type=2"
+            
+            try:
+                with urllib.request.urlopen(list_url, timeout=10) as resp:
+                    list_xml = resp.read().decode()
+                    # Parse XML to get object keys
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(list_xml)
+                    ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+                    keys = []
+                    for content in root.findall(".//s3:Content", ns):
+                        key_el = content.find("s3:Key", ns)
+                        if key_el is not None and key_el.text:
+                            keys.append(key_el.text)
+                    
+                    files_written = 0
+                    for key in keys:
+                        # Download each file
+                        file_url = f"http://{endpoint}/{bucket}/{key}"
+                        rel_path = key.split(f"v{version}/", 1)[-1] if f"v{version}/" in key else key
+                        
+                        # Determine target path based on set type
+                        if set_type == "full":
+                            target_path = os.path.join(mt5_dir, rel_path)
+                        else:
+                            target_dir = type_paths.get(set_type, "")
+                            target_path = os.path.join(mt5_dir, target_dir, rel_path)
+                        
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        try:
+                            urllib.request.urlretrieve(file_url, target_path)
+                            files_written += 1
+                        except Exception as dl_err:
+                            logger.warning(f"Failed to download {file_url}: {dl_err}")
+                    
+                    results.append({"setId": set_id, "status": "ok", "filesWritten": files_written})
+            except Exception as api_err:
+                logger.warning(f"MinIO API error: {api_err}")
+                results.append({"setId": set_id, "status": "error", "error": str(api_err)})
+        except Exception as e:
+            results.append({"setId": cs.get("id"), "status": "error", "error": str(e)})
+    
+    # Restart MT5 terminal to pick up changes
     try:
-        result = execute_sequence([a.model_dump() for a in body.sequence])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/focus")
-async def rpa_focus():
-    """Focus the MT5 window."""
-    try:
-        result = focus_mt5()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/search-broker")
-async def rpa_search_broker(body: dict = {}):
-    """Search for a broker in MT5's Open an Account dialog."""
-    query = body.get("query", "")
-    try:
-        brokers = search_broker(query)
-        return {"brokers": brokers}
-    except Exception as e:
-        logger = logging.getLogger("rpa")
-        logger.error("search_broker error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/sign-in")
-async def rpa_sign_in(body: dict):
-    """Sign in to a trading account via MT5 GUI."""
-    try:
-        result = sign_in_to_account(
-            login=body.get("login", ""),
-            password=body.get("password", ""),
-            server=body.get("server", ""),
-        )
-        return {"result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/dismiss-liveupdate")
-async def rpa_dismiss():
-    """Dismiss LiveUpdate/Welcome dialogs."""
-    try:
-        result = dismiss_liveupdate()
-        return {"result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/list-windows")
-async def rpa_list_windows():
-    """List all visible X11 windows."""
-    try:
-        windows = list_windows()
-        return {"windows": windows}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/v1/rpa/dismiss-liveupdate")
-async def rpa_dismiss():
-    """Dismiss LiveUpdate/Welcome dialogs."""
-    try:
-        result = dismiss_liveupdate()
-        return {"result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        subprocess.run(["pkill", "-f", "terminal64.exe"], timeout=5)
+        logger.info("MT5 terminal killed for restart")
+    except Exception:
+        pass
+    
+    return {"status": "ok", "results": results}
 
 
-@app.post("/v1/rpa/key")
-async def rpa_key(body: dict = {}):
-    """Send a key press to MT5."""
-    return _wine_cmd("key", key=body.get("key", ""))
+@app.post("/sync/bootstrap")
+async def sync_bootstrap(body: dict = {}):
+    """Bootstrap sync on first boot. Pulls assigned config sets from env vars."""
+    import os
+    config_set_ids = os.environ.get("CONFIG_SET_IDS", "")
+    if not config_set_ids:
+        return {"status": "ok", "results": []}
+    
+    ids = [int(x.strip()) for x in config_set_ids.split(",") if x.strip()]
+    config_sets = [{"id": sid, "version": "current", "setType": "full"} for sid in ids]
+    
+    # Reuse sync_pull logic
+    import subprocess
+    import urllib.request
+    import xml.etree.ElementTree as ET
+    
+    mt5_dir = os.environ.get("MT5_DIR", "/config/.wine/drive_c/Program Files/MetaTrader 5")
+    endpoint = os.environ.get("MINIO_ENDPOINT", "minio:9000")
+    bucket = os.environ.get("MINIO_BUCKET", "mt5-configs")
+    results = []
+    
+    for cs in config_sets:
+        try:
+            set_id = cs["id"]
+            list_url = f"http://{endpoint}/{bucket}/?prefix=config-sets/{set_id}/&list-type=2"
+            
+            with urllib.request.urlopen(list_url, timeout=10) as resp:
+                list_xml = resp.read().decode()
+                root = ET.fromstring(list_xml)
+                ns = {"s3": "http://s3.amazonaws.com/doc/2006-03-01/"}
+                keys = []
+                for content in root.findall(".//s3:Content", ns):
+                    key_el = content.find("s3:Key", ns)
+                    if key_el is not None and key_el.text:
+                        keys.append(key_el.text)
+                
+                # Find the latest version
+                versions = set()
+                for k in keys:
+                    m = k.split("v")[-1].split("/")[0] if "v" in k else None
+                    if m and m.isdigit():
+                        versions.add(int(m))
+                
+                latest = max(versions) if versions else 1
+                files_written = 0
+                
+                prefix = f"config-sets/{set_id}/v{latest}/"
+                for key in keys:
+                    if not key.startswith(prefix):
+                        continue
+                    rel_path = key[len(prefix):]
+                    target_path = os.path.join(mt5_dir, rel_path)
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    file_url = f"http://{endpoint}/{bucket}/{key}"
+                    try:
+                        urllib.request.urlretrieve(file_url, target_path)
+                        files_written += 1
+                    except Exception:
+                        pass
+                
+                results.append({"setId": set_id, "version": latest, "status": "ok", "filesWritten": files_written})
+        except Exception as e:
+            results.append({"setId": cs["id"], "status": "error", "error": str(e)})
+    
+    return {"status": "ok", "results": results}
 
 
-@app.post("/v1/rpa/type-text")
-async def rpa_type_text(body: dict = {}):
-    """Type text into MT5."""
-    return _wine_cmd("type_text", text=body.get("text", ""))
-
-
-@app.post("/v1/rpa/click-later")
-async def rpa_click_later():
-    """Click Later button on various dialogs."""
-    try:
-        result = click_later()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ---------------------------------------------------------------------------
-# Granular Dialog Routes (via wine_rpa agent)
-# ---------------------------------------------------------------------------
-
-
-@app.post("/v1/rpa/dialog/open")
-async def rpa_dialog_open():
-    """Open the Open an Account dialog using xdotool (reliable X11 clicks)."""
-    import time
-    _xdo_click(30, 20)   # Click File menu
-    time.sleep(0.8)
-    _xdo_click(80, 220)  # Click Open an Account
-    time.sleep(3.0)
-    return _wine_cmd("dialog_open")
-
-
-@app.post("/v1/rpa/dialog/search")
-async def rpa_dialog_search(body: dict = {}):
-    """Search for a broker in the dialog."""
-    return _wine_cmd("dialog_search", query=body.get("query", ""))
-
-
-@app.post("/v1/rpa/dialog/select")
-async def rpa_dialog_select(body: dict = {}):
-    """Select a broker by index in the results list."""
-    return _wine_cmd("dialog_select", index=body.get("index", 0))
-
-
-@app.post("/v1/rpa/dialog/next")
-async def rpa_dialog_next():
-    """Click Next > button."""
-    return _wine_cmd("dialog_next")
-
-
-@app.post("/v1/rpa/dialog/back")
-async def rpa_dialog_back():
-    """Click < Back button."""
-    return _wine_cmd("dialog_back")
-
-
-@app.post("/v1/rpa/dialog/cancel")
-async def rpa_dialog_cancel():
-    """Cancel and close the dialog."""
-    return _wine_cmd("dialog_cancel")
-
-
-@app.post("/v1/rpa/dialog/servers")
-async def rpa_dialog_servers():
-    """Get server list from Step 2 ComboBox."""
-    return _wine_cmd("dialog_servers")
-
-
-@app.post("/v1/rpa/dialog/state")
-async def rpa_dialog_state():
-    """Get current dialog state."""
-    return _wine_cmd("dialog_state")
-
-
-@app.post("/v1/rpa/discover-servers")
-async def rpa_discover_servers(body: dict = {}):
-    """Discover available servers for a broker."""
-    try:
-        result = discover_servers(body.get("broker", ""))
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.get("/sync/status")
+async def sync_status():
+    """Return current sync status."""
+    import os
+    config_set_ids = os.environ.get("CONFIG_SET_IDS", "")
+    ids = [int(x.strip()) for x in config_set_ids.split(",") if x.strip()] if config_set_ids else []
+    return {
+        "lastSyncAt": None,  # Could track in a file
+        "deployedSets": [],
+        "assignedSetIds": ids,
+        "minioEndpoint": os.environ.get("MINIO_ENDPOINT", ""),
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -24,6 +24,7 @@ const InstanceSchema = z
     vncPassword: z.string().optional(),
     configJson: z.string().nullable().optional(),
     resourceLimitsJson: z.string().nullable().optional(),
+    isManagement: z.boolean().optional(),
     createdAt: z.number().nullable().optional(),
     updatedAt: z.number().nullable().optional(),
   })
@@ -37,6 +38,7 @@ const CreateInstanceBody = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/)
     .openapi({ example: "mt5-prod-1" }),
   password: z.string().optional(),
+  isManagement: z.boolean().optional(),
 });
 
 const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
@@ -47,6 +49,10 @@ const PROFILES_TEMPLATES_DIR =
   process.env.PROFILES_TEMPLATES_DIR || "/home/misu/bank/Profiles/Templates";
 const PROFILES_SYMBOLSETS_DIR =
   process.env.PROFILES_SYMBOLSETS_DIR || "/home/misu/bank/Profiles/SymbolSets";
+const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || "minio:9000";
+const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
+const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
+const MINIO_BUCKET = process.env.MINIO_BUCKET || "mt5-configs";
 
 const listRoute = createRoute({
   method: "get",
@@ -339,6 +345,7 @@ function generateComposeContent(
   name: string,
   password: string,
   limits?: { cpuShares?: number; memoryLimit?: string },
+  managementMode?: boolean,
 ): string {
   const instDir = `${INSTANCES_DIR}/${name}`;
   const BRIDGE_SRC = process.env.BRIDGE_SRC || "/home/misu/mt5-manager/scripts/mt5-bridge";
@@ -349,7 +356,8 @@ function generateComposeContent(
     image: mt5-tigervnc:latest
     container_name: ${name}
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - mt5-net
     ports:
       - 5901
       - 6080
@@ -366,7 +374,16 @@ function generateComposeContent(
       - DISPLAY=:1
       - ENABLE_FILEBROWSER=false
       - ENABLE_API=true
-      - BRIDGE_PORT=8090`);
+      - BRIDGE_PORT=8090
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+      - CONFIG_SET_IDS=
+      - API_URL=http://host.docker.internal:3001`);
+  if (managementMode) {
+    lines.push(`      - MANAGEMENT_MODE=true`);
+  }
   if (limits?.cpuShares) {
     lines.push(`    cpu_shares: ${limits.cpuShares}`);
   }
@@ -474,10 +491,25 @@ export function instanceRoutes(app: OpenAPIHono) {
     const all = await getDb().select().from(schema.instances).all();
     const running = listRunningContainers();
     const runningMap = Object.fromEntries(running.map((r) => [r.name, r]));
-    const withStatus = all.map((inst) => {
-      const config = JSON.parse(inst.configJson || "{}");
-      return {
+    const filtered = all.filter((inst) => !inst.isManagement);
+    const withStatus = [];
+    for (const inst of filtered) {
+      let config: Record<string, any> = {};
+      try {
+        config = JSON.parse(inst.configJson || "{}");
+      } catch {}
+
+      if (!config.wsPort && runningMap[inst.name]?.containerRunning) {
+        await detectPorts(inst.name);
+        try {
+          const updated = await getDb().select().from(schema.instances).where(eq(schema.instances.name, inst.name)).get();
+          if (updated) config = JSON.parse(updated.configJson || "{}");
+        } catch {}
+      }
+
+      withStatus.push({
         ...inst,
+        isManagement: inst.isManagement === 1,
         createdAt: inst.createdAt?.getTime() ?? 0,
         updatedAt: inst.updatedAt?.getTime() ?? 0,
         status: runningMap[inst.name]?.status || "stopped",
@@ -495,13 +527,13 @@ export function instanceRoutes(app: OpenAPIHono) {
           ? `http://${process.env.HOST || "localhost"}:${config.bridgePort}`
           : undefined,
         vncPassword: config.password,
-      };
-    });
+      });
+    }
     return c.json({ instances: withStatus });
   });
 
   app.openapi(createInstanceRoute, async (c) => {
-    const { name, password: bodyPassword } = c.req.valid("json");
+    const { name, password: bodyPassword, isManagement } = c.req.valid("json");
     const db = getDb();
     const existing = await db
       .select()
@@ -533,7 +565,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     const password = bodyPassword || randomBytes(8).toString("hex");
 
     ensureSharedDir();
-    const composeContent = generateComposeContent(name, password);
+    const composeContent = generateComposeContent(name, password, undefined, isManagement ?? false);
 
     writeFileSync(`${instDir}/docker-compose.yaml`, composeContent);
 
@@ -548,7 +580,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     }
 
     const containerId = getContainerId(name);
-    await db.insert(schema.instances).values({ name, status: "running", containerId }).run();
+    await db.insert(schema.instances).values({ name, status: "running", containerId, isManagement: isManagement ? 1 : 0 }).run();
     await detectPorts(name);
 
     const instFromDb = await db
@@ -592,9 +624,22 @@ export function instanceRoutes(app: OpenAPIHono) {
     if (!inst) return c.json({ error: "not found" }, 404);
     const running = listRunningContainers();
     const live = running.find((r) => r.name === name);
-    const config = JSON.parse(inst.configJson || "{}");
+    let config: Record<string, any> = {};
+    try {
+      config = JSON.parse(inst.configJson || "{}");
+    } catch {}
+
+    if (!config.wsPort && live?.containerRunning) {
+      await detectPorts(name);
+      try {
+        const updated = await getDb().select().from(schema.instances).where(eq(schema.instances.name, name)).get();
+        if (updated) config = JSON.parse(updated.configJson || "{}");
+      } catch {}
+    }
+
     return c.json({
       ...inst,
+      isManagement: inst.isManagement === 1,
       createdAt: inst.createdAt?.getTime() ?? 0,
       updatedAt: inst.updatedAt?.getTime() ?? 0,
       status: live?.status || "stopped",
@@ -626,6 +671,9 @@ export function instanceRoutes(app: OpenAPIHono) {
       return c.body(JSON.stringify({ error: "not found" }), 404, {
         "content-type": "application/json",
       }) as any;
+    if (inst.isManagement === 1) {
+      return c.json({ error: "Cannot delete management instance" }, 400);
+    }
     const instDir = `${INSTANCES_DIR}/${name}`;
     try {
       execSync(`docker compose -f ${instDir}/docker-compose.yaml down`, {

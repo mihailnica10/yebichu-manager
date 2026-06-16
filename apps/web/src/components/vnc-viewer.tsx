@@ -21,12 +21,15 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
 
     let rfb: any;
     let mounted = true;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let retryCount = 0;
 
     async function connect() {
       try {
         const RFB = (await import("@novnc/novnc")).default;
         if (!mounted) return;
 
+        setStatus("connecting");
         rfb = new RFB(containerRef.current, wsUrl, {
           credentials: { password: "" },
           repeaterID: "",
@@ -35,18 +38,31 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
         rfbRef.current = rfb;
 
         rfb.addEventListener("connect", () => {
-          if (mounted) setStatus("connected");
+          if (mounted) {
+            setStatus("connected");
+            retryCount = 0;
+          }
         });
         rfb.addEventListener("disconnect", () => {
           if (mounted) {
             setStatus("disconnected");
             onDisconnect?.();
+            if (retryCount < 10) {
+              retryCount++;
+              const delay = Math.min(1000 * 2 ** retryCount, 15000);
+              retryTimer = setTimeout(connect, delay);
+            }
           }
         });
         rfb.addEventListener("securityfailure", (e: any) => {
           if (mounted) {
             setStatus("error");
             setErrorMsg(e.detail || "Authentication failed");
+            if (retryCount < 10) {
+              retryCount++;
+              const delay = Math.min(1000 * 2 ** retryCount, 15000);
+              retryTimer = setTimeout(connect, delay);
+            }
           }
         });
         rfb.addEventListener("desktopname", () => {
@@ -60,6 +76,11 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
         if (mounted) {
           setStatus("error");
           setErrorMsg(err.message || "Failed to initialize VNC");
+          if (retryCount < 10) {
+            retryCount++;
+            const delay = Math.min(1000 * 2 ** retryCount, 15000);
+            retryTimer = setTimeout(connect, delay);
+          }
         }
       }
     }
@@ -68,6 +89,7 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
 
     return () => {
       mounted = false;
+      clearTimeout(retryTimer);
       if (rfb) {
         try {
           rfb.disconnect();

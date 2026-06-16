@@ -1,5 +1,6 @@
 #!/bin/bash
 
+MANAGEMENT_MODE="${MANAGEMENT_MODE:-false}"
 PASSWORD="${PASSWORD:-changeme}"
 MT5_INSTANCE_NAME="${INSTANCE_NAME:-mt5}"
 ENABLE_FILEBROWSER="${ENABLE_FILEBROWSER:-false}"
@@ -51,15 +52,15 @@ export $(dbus-launch)
 startxfce4 &
 wait_for_process xfce4-panel 10
 
+websockify 6080 localhost:5901 &
+echo "[ENTRYPOINT] websockify on :6080"
+
 echo "[ENTRYPOINT] Xvnc + Xfce4 started"
 
 # Initialize Wine prefix (first boot only)
 if [ -f /usr/local/bin/init-wine.sh ]; then
     /usr/local/bin/init-wine.sh 2>&1 | sed 's/^/[INIT-WINE] /'
 fi
-
-websockify 6080 localhost:5901 &
-echo "[ENTRYPOINT] websockify on :6080"
 
 if [ ! -d "$MT5_DIR" ]; then
     mkdir -p "$MT5_DIR"
@@ -139,7 +140,36 @@ if [ -f "$SHARED_DIR/terminal64.exe" ]; then
     echo "[ENTRYPOINT] Symlinks ready"
 fi
 
-if [ "$ENABLE_FILEBROWSER" = "true" ]; then
+# Management mode: isolated workspace, no shared symlinks for Profiles/MQL5
+if [ "$MANAGEMENT_MODE" = "true" ]; then
+  echo "[ENTRYPOINT] Management mode — isolated workspace"
+
+  # Remove symlinks created above and replace with real directories so that
+  # subsequent seeding writes into instance-local storage, not into the shared dir.
+  for dir in "MQL5/Experts" "MQL5/Indicators" "MQL5/Include" "MQL5/Libraries" "MQL5/Scripts" "MQL5/Services" "MQL5/Presets" "MQL5/Images" "MQL5/Profiles" "Profiles"; do
+    if [ -L "$MT5_DIR/$dir" ]; then
+      target=$(readlink "$MT5_DIR/$dir")
+      rm -f "$MT5_DIR/$dir"
+      cp -r "$target" "$MT5_DIR/$dir" 2>/dev/null || mkdir -p "$MT5_DIR/$dir"
+    fi
+  done
+
+  # Seed default Profiles/MQL5 from shared if not done yet
+  SEED_MARKER="/config/.wine/mgmt_seeded"
+  if [ ! -f "$SEED_MARKER" ]; then
+    for dir in Profiles MQL5; do
+      if [ -d "$SHARED_DIR/$dir" ]; then
+        echo "[ENTRYPOINT] Seeding $dir from shared..."
+        mkdir -p "$MT5_DIR/$dir"
+        cp -rn "$SHARED_DIR/$dir/"* "$MT5_DIR/$dir/" 2>/dev/null || true
+      fi
+    done
+    touch "$SEED_MARKER"
+    echo "[ENTRYPOINT] Seed complete — management instance has its own copies"
+  fi
+fi
+
+if [ "$MANAGEMENT_MODE" != "true" ] && [ "$ENABLE_FILEBROWSER" = "true" ]; then
     filebrowser --port 8080 --address 0.0.0.0 --root "$SHARED_DIR/MQL5" --auth-method=noauth &
     echo "[ENTRYPOINT] Filebrowser on :8080"
 fi
@@ -180,7 +210,7 @@ echo "[ENTRYPOINT] All services started. Monitoring..."
 trap "echo '[ENTRYPOINT] Shutting down...'; kill 0; exit 0" SIGTERM SIGINT
 
 while true; do
-    sleep 30
+    sleep 15
     if ! pgrep -x "Xvnc" > /dev/null 2>&1; then
         echo "[ENTRYPOINT] Xvnc died, restarting..."
         Xvnc :1 -geometry ${VNC_GEOMETRY:-1280x720} -depth 24 -SecurityTypes None -rfbport 5901 &
