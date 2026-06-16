@@ -396,6 +396,10 @@ function generateComposeContent(
       - seccomp=unconfined
     stdin_open: true
     tty: true
+
+networks:
+  mt5-net:
+    external: true
 `);
   return lines.join("\n");
 }
