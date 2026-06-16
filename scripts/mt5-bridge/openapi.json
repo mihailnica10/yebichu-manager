@@ -1,0 +1,2889 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MT5 Bridge API",
+    "description": "HTTP bridge to MetaTrader 5 terminal for trading operations.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/initialize": {
+      "post": {
+        "summary": "Post Initialize",
+        "operationId": "post_initialize_initialize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitializeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitializeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "summary": "Post Login",
+        "operationId": "post_login_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/shutdown": {
+      "post": {
+        "summary": "Post Shutdown",
+        "operationId": "post_shutdown_shutdown_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShutdownResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "summary": "Get Version",
+        "operationId": "get_version_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/last-error": {
+      "get": {
+        "summary": "Get Last Error",
+        "operationId": "get_last_error_last_error_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/terminal-info": {
+      "get": {
+        "summary": "Get Terminal Info",
+        "operationId": "get_terminal_info_terminal_info_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminalInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/symbols-total": {
+      "get": {
+        "summary": "Get Symbols Total",
+        "operationId": "get_symbols_total_symbols_total_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/symbol-info": {
+      "get": {
+        "summary": "Get Symbol Info",
+        "operationId": "get_symbol_info_symbol_info_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymbolInfoFullResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/symbol-select": {
+      "post": {
+        "summary": "Post Symbol Select",
+        "operationId": "post_symbol_select_symbol_select_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SymbolSelectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymbolSelectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market-book-add": {
+      "post": {
+        "summary": "Post Market Book Add",
+        "operationId": "post_market_book_add_market_book_add_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SymbolSelectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketBookActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market-book-get": {
+      "get": {
+        "summary": "Get Market Book Get",
+        "operationId": "get_market_book_get_market_book_get_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketBookResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/market-book-release": {
+      "post": {
+        "summary": "Post Market Book Release",
+        "operationId": "post_market_book_release_market_book_release_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SymbolSelectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketBookActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ohlc": {
+      "get": {
+        "summary": "Get Ohlc",
+        "operationId": "get_ohlc_ohlc_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name, e.g. EURUSD",
+              "title": "Symbol"
+            },
+            "description": "Symbol name, e.g. EURUSD"
+          },
+          {
+            "name": "timeframe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Timeframe: M1, M5, M15, H1, H4, D1",
+              "default": "M1",
+              "title": "Timeframe"
+            },
+            "description": "Timeframe: M1, M5, M15, H1, H4, D1"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Number of candles",
+              "default": 100,
+              "title": "Count"
+            },
+            "description": "Number of candles"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OHLCResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copy-rates-from": {
+      "get": {
+        "summary": "Get Copy Rates From",
+        "operationId": "get_copy_rates_from_copy_rates_from_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          },
+          {
+            "name": "timeframe",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Timeframe: M1, M5, M15, H1, H4, D1",
+              "title": "Timeframe"
+            },
+            "description": "Timeframe: M1, M5, M15, H1, H4, D1"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000,
+              "minimum": 1,
+              "description": "Number of candles",
+              "default": 100,
+              "title": "Count"
+            },
+            "description": "Number of candles"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyRatesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copy-rates-range": {
+      "get": {
+        "summary": "Get Copy Rates Range",
+        "operationId": "get_copy_rates_range_copy_rates_range_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          },
+          {
+            "name": "timeframe",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Timeframe: M1, M5, M15, H1, H4, D1",
+              "title": "Timeframe"
+            },
+            "description": "Timeframe: M1, M5, M15, H1, H4, D1"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyRatesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copy-ticks-from": {
+      "get": {
+        "summary": "Get Copy Ticks From",
+        "operationId": "get_copy_ticks_from_copy_ticks_from_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000,
+              "minimum": 1,
+              "description": "Number of ticks",
+              "default": 1000,
+              "title": "Count"
+            },
+            "description": "Number of ticks"
+          },
+          {
+            "name": "flags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Tick flags (COPY_TICKS_ALL=0, INFO=1, TRADE=2)",
+              "default": 0,
+              "title": "Flags"
+            },
+            "description": "Tick flags (COPY_TICKS_ALL=0, INFO=1, TRADE=2)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyTicksResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/copy-ticks-range": {
+      "get": {
+        "summary": "Get Copy Ticks Range",
+        "operationId": "get_copy_ticks_range_copy_ticks_range_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Symbol name",
+              "title": "Symbol"
+            },
+            "description": "Symbol name"
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          },
+          {
+            "name": "flags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Tick flags (COPY_TICKS_ALL=0, INFO=1, TRADE=2)",
+              "default": 0,
+              "title": "Flags"
+            },
+            "description": "Tick flags (COPY_TICKS_ALL=0, INFO=1, TRADE=2)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyTicksResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders-total": {
+      "get": {
+        "summary": "Get Orders Total",
+        "operationId": "get_orders_total_orders_total_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders-get": {
+      "get": {
+        "summary": "Get Orders Get",
+        "operationId": "get_orders_get_orders_get_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by symbol",
+              "title": "Symbol"
+            },
+            "description": "Filter by symbol"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by group pattern",
+              "title": "Group"
+            },
+            "description": "Filter by group pattern"
+          },
+          {
+            "name": "ticket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by ticket",
+              "title": "Ticket"
+            },
+            "description": "Filter by ticket"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Orders Get Orders Get Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order-calc-margin": {
+      "post": {
+        "summary": "Post Order Calc Margin",
+        "operationId": "post_order_calc_margin_order_calc_margin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCalcMarginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalcMarginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order-calc-profit": {
+      "post": {
+        "summary": "Post Order Calc Profit",
+        "operationId": "post_order_calc_profit_order_calc_profit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCalcProfitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalcProfitResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order-check": {
+      "post": {
+        "summary": "Post Order Check",
+        "operationId": "post_order_check_order_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order-send": {
+      "post": {
+        "summary": "Post Order Send",
+        "operationId": "post_order_send_order_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions-total": {
+      "get": {
+        "summary": "Get Positions Total",
+        "operationId": "get_positions_total_positions_total_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions-get": {
+      "get": {
+        "summary": "Get Positions Get",
+        "operationId": "get_positions_get_positions_get_get",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by symbol",
+              "title": "Symbol"
+            },
+            "description": "Filter by symbol"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by group pattern",
+              "title": "Group"
+            },
+            "description": "Filter by group pattern"
+          },
+          {
+            "name": "ticket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by ticket",
+              "title": "Ticket"
+            },
+            "description": "Filter by ticket"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Positions Get Positions Get Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history-orders-total": {
+      "get": {
+        "summary": "Get History Orders Total",
+        "operationId": "get_history_orders_total_history_orders_total_get",
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history-orders-get": {
+      "get": {
+        "summary": "Get History Orders Get",
+        "operationId": "get_history_orders_get_history_orders_get_get",
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by group pattern",
+              "title": "Group"
+            },
+            "description": "Filter by group pattern"
+          },
+          {
+            "name": "ticket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by ticket",
+              "title": "Ticket"
+            },
+            "description": "Filter by ticket"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get History Orders Get History Orders Get Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history-deals-total": {
+      "get": {
+        "summary": "Get History Deals Total",
+        "operationId": "get_history_deals_total_history_deals_total_get",
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history-deals-get": {
+      "get": {
+        "summary": "Get History Deals Get",
+        "operationId": "get_history_deals_get_history_deals_get_get",
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Start date (unix timestamp)",
+              "title": "Date From"
+            },
+            "description": "Start date (unix timestamp)"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "End date (unix timestamp)",
+              "title": "Date To"
+            },
+            "description": "End date (unix timestamp)"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by group pattern",
+              "title": "Group"
+            },
+            "description": "Filter by group pattern"
+          },
+          {
+            "name": "ticket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by ticket",
+              "title": "Ticket"
+            },
+            "description": "Filter by ticket"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get History Deals Get History Deals Get Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trades": {
+      "get": {
+        "summary": "Get Trades",
+        "operationId": "get_trades_trades_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account": {
+      "get": {
+        "summary": "Get Account",
+        "operationId": "get_account_account_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/history": {
+      "get": {
+        "summary": "Get History",
+        "operationId": "get_history_history_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Start time (unix seconds). Defaults to 24 hours ago.",
+              "title": "From"
+            },
+            "description": "Start time (unix seconds). Defaults to 24 hours ago."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "End time (unix seconds). Defaults to now.",
+              "title": "To"
+            },
+            "description": "End time (unix seconds). Defaults to now."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/symbols": {
+      "get": {
+        "summary": "Get Symbols",
+        "operationId": "get_symbols_symbols_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymbolsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Get Health",
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountResponse": {
+        "properties": {
+          "login": {
+            "type": "integer",
+            "title": "Login",
+            "description": "Account login number"
+          },
+          "balance": {
+            "type": "number",
+            "title": "Balance",
+            "description": "Account balance"
+          },
+          "equity": {
+            "type": "number",
+            "title": "Equity",
+            "description": "Account equity"
+          },
+          "margin": {
+            "type": "number",
+            "title": "Margin",
+            "description": "Used margin"
+          },
+          "marginFree": {
+            "type": "number",
+            "title": "Marginfree",
+            "description": "Free margin"
+          },
+          "profit": {
+            "type": "number",
+            "title": "Profit",
+            "description": "Current profit"
+          },
+          "leverage": {
+            "type": "integer",
+            "title": "Leverage",
+            "description": "Account leverage"
+          },
+          "server": {
+            "type": "string",
+            "title": "Server",
+            "description": "Trade server name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "Deposit currency"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Account owner name"
+          },
+          "tradeMode": {
+            "type": "integer",
+            "title": "Trademode",
+            "description": "Trade mode (0=real, 1=demo)"
+          },
+          "marginLevel": {
+            "type": "number",
+            "title": "Marginlevel",
+            "description": "Margin level percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "login",
+          "balance",
+          "equity",
+          "margin",
+          "marginFree",
+          "profit",
+          "leverage",
+          "server",
+          "currency",
+          "name",
+          "tradeMode",
+          "marginLevel"
+        ],
+        "title": "AccountResponse"
+      },
+      "CalcMarginResponse": {
+        "properties": {
+          "margin": {
+            "type": "number",
+            "title": "Margin",
+            "description": "Required margin"
+          }
+        },
+        "type": "object",
+        "required": ["margin"],
+        "title": "CalcMarginResponse"
+      },
+      "CalcProfitResponse": {
+        "properties": {
+          "profit": {
+            "type": "number",
+            "title": "Profit",
+            "description": "Calculated profit"
+          }
+        },
+        "type": "object",
+        "required": ["profit"],
+        "title": "CalcProfitResponse"
+      },
+      "Candle": {
+        "properties": {
+          "time": {
+            "type": "integer",
+            "title": "Time",
+            "description": "Unix timestamp in seconds"
+          },
+          "open": {
+            "type": "number",
+            "title": "Open",
+            "description": "Open price"
+          },
+          "high": {
+            "type": "number",
+            "title": "High",
+            "description": "High price"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low",
+            "description": "Low price"
+          },
+          "close": {
+            "type": "number",
+            "title": "Close",
+            "description": "Close price"
+          },
+          "tickVolume": {
+            "type": "integer",
+            "title": "Tickvolume",
+            "description": "Tick volume"
+          },
+          "spread": {
+            "type": "integer",
+            "title": "Spread",
+            "description": "Spread in points"
+          },
+          "realVolume": {
+            "type": "integer",
+            "title": "Realvolume",
+            "description": "Real volume"
+          }
+        },
+        "type": "object",
+        "required": ["time", "open", "high", "low", "close", "tickVolume", "spread", "realVolume"],
+        "title": "Candle"
+      },
+      "CheckResult": {
+        "properties": {
+          "retcode": {
+            "type": "integer",
+            "title": "Retcode",
+            "description": "Return code"
+          },
+          "balance": {
+            "type": "number",
+            "title": "Balance",
+            "description": "Balance after check"
+          },
+          "equity": {
+            "type": "number",
+            "title": "Equity",
+            "description": "Equity after check"
+          },
+          "profit": {
+            "type": "number",
+            "title": "Profit",
+            "description": "Floating profit"
+          },
+          "margin": {
+            "type": "number",
+            "title": "Margin",
+            "description": "Margin required"
+          },
+          "margin_free": {
+            "type": "number",
+            "title": "Margin Free",
+            "description": "Free margin"
+          },
+          "margin_level": {
+            "type": "number",
+            "title": "Margin Level",
+            "description": "Margin level"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Server comment"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request",
+            "description": "Original request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "retcode",
+          "balance",
+          "equity",
+          "profit",
+          "margin",
+          "margin_free",
+          "margin_level",
+          "comment",
+          "request"
+        ],
+        "title": "CheckResult"
+      },
+      "CopyRatesResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe",
+            "description": "Timeframe string"
+          },
+          "candles": {
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            },
+            "type": "array",
+            "title": "Candles",
+            "description": "OHLC candles"
+          }
+        },
+        "type": "object",
+        "required": ["symbol", "timeframe", "candles"],
+        "title": "CopyRatesResponse"
+      },
+      "CopyTicksResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "ticks": {
+            "items": {
+              "$ref": "#/components/schemas/Tick"
+            },
+            "type": "array",
+            "title": "Ticks",
+            "description": "Tick data"
+          }
+        },
+        "type": "object",
+        "required": ["symbol", "ticks"],
+        "title": "CopyTicksResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "API status"
+          },
+          "mt5": {
+            "type": "string",
+            "title": "Mt5",
+            "description": "MT5 connection status"
+          },
+          "terminal": {
+            "type": "string",
+            "title": "Terminal",
+            "description": "Terminal running status"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account",
+            "description": "Account login number or null"
+          }
+        },
+        "type": "object",
+        "required": ["status", "mt5", "terminal", "account"],
+        "title": "HealthResponse"
+      },
+      "HistoryDeal": {
+        "properties": {
+          "ticket": {
+            "type": "integer",
+            "title": "Ticket",
+            "description": "Deal ticket number"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Deal type: buy or sell"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Deal volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Deal price"
+          },
+          "profit": {
+            "type": "number",
+            "title": "Profit",
+            "description": "Profit in deposit currency"
+          },
+          "commission": {
+            "type": "number",
+            "title": "Commission",
+            "description": "Commission charged"
+          },
+          "swap": {
+            "type": "number",
+            "title": "Swap",
+            "description": "Swap charged"
+          },
+          "time": {
+            "type": "integer",
+            "title": "Time",
+            "description": "Deal time (unix seconds)"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Comment"
+          },
+          "magic": {
+            "type": "integer",
+            "title": "Magic",
+            "description": "Expert Advisor ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "symbol",
+          "type",
+          "volume",
+          "price",
+          "profit",
+          "commission",
+          "swap",
+          "time",
+          "comment",
+          "magic"
+        ],
+        "title": "HistoryDeal"
+      },
+      "HistoryOrder": {
+        "properties": {
+          "ticket": {
+            "type": "integer",
+            "title": "Ticket",
+            "description": "Order ticket number"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Order type description"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Order volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Order price"
+          },
+          "sl": {
+            "type": "number",
+            "title": "Sl",
+            "description": "Stop Loss level"
+          },
+          "tp": {
+            "type": "number",
+            "title": "Tp",
+            "description": "Take Profit level"
+          },
+          "time": {
+            "type": "integer",
+            "title": "Time",
+            "description": "Order time (unix seconds)"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Comment"
+          },
+          "magic": {
+            "type": "integer",
+            "title": "Magic",
+            "description": "Expert Advisor ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "symbol",
+          "type",
+          "volume",
+          "price",
+          "sl",
+          "tp",
+          "time",
+          "comment",
+          "magic"
+        ],
+        "title": "HistoryOrder"
+      },
+      "HistoryResponse": {
+        "properties": {
+          "deals": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryDeal"
+            },
+            "type": "array",
+            "title": "Deals",
+            "description": "Historical deals"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryOrder"
+            },
+            "type": "array",
+            "title": "Orders",
+            "description": "Historical orders"
+          }
+        },
+        "type": "object",
+        "required": ["deals", "orders"],
+        "title": "HistoryResponse"
+      },
+      "InitializeRequest": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path",
+            "description": "Terminal executable path"
+          },
+          "login": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Login",
+            "description": "Account login"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password",
+            "description": "Account password"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server",
+            "description": "Trade server"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout",
+            "description": "Connection timeout (ms)"
+          },
+          "portable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portable",
+            "description": "Portable mode"
+          }
+        },
+        "type": "object",
+        "title": "InitializeRequest"
+      },
+      "InitializeResponse": {
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "title": "Result",
+            "description": "Initialization result"
+          }
+        },
+        "type": "object",
+        "required": ["result"],
+        "title": "InitializeResponse"
+      },
+      "LastErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "Error code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Error description"
+          }
+        },
+        "type": "object",
+        "required": ["code", "description"],
+        "title": "LastErrorResponse"
+      },
+      "LoginRequest": {
+        "properties": {
+          "login": {
+            "type": "integer",
+            "title": "Login",
+            "description": "Account login"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password",
+            "description": "Account password"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server",
+            "description": "Trade server"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout",
+            "description": "Connection timeout (ms)"
+          }
+        },
+        "type": "object",
+        "required": ["login"],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "title": "Result",
+            "description": "Login result"
+          }
+        },
+        "type": "object",
+        "required": ["result"],
+        "title": "LoginResponse"
+      },
+      "MarketBookActionResponse": {
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "title": "Result",
+            "description": "Operation result"
+          }
+        },
+        "type": "object",
+        "required": ["result"],
+        "title": "MarketBookActionResponse"
+      },
+      "MarketBookEntry": {
+        "properties": {
+          "type": {
+            "type": "integer",
+            "title": "Type",
+            "description": "Book type"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Price"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Volume"
+          },
+          "volume_dbl": {
+            "type": "number",
+            "title": "Volume Dbl",
+            "description": "Volume (double precision)"
+          }
+        },
+        "type": "object",
+        "required": ["type", "price", "volume", "volume_dbl"],
+        "title": "MarketBookEntry"
+      },
+      "MarketBookResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "book": {
+            "items": {
+              "$ref": "#/components/schemas/MarketBookEntry"
+            },
+            "type": "array",
+            "title": "Book",
+            "description": "Market depth entries"
+          }
+        },
+        "type": "object",
+        "required": ["symbol", "book"],
+        "title": "MarketBookResponse"
+      },
+      "OHLCResponse": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "timeframe": {
+            "type": "string",
+            "title": "Timeframe",
+            "description": "Timeframe string"
+          },
+          "candles": {
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            },
+            "type": "array",
+            "title": "Candles",
+            "description": "OHLC candles"
+          }
+        },
+        "type": "object",
+        "required": ["symbol", "timeframe", "candles"],
+        "title": "OHLCResponse"
+      },
+      "Order": {
+        "properties": {
+          "ticket": {
+            "type": "integer",
+            "title": "Ticket",
+            "description": "Order ticket number"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Order type description"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Order volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Order price"
+          },
+          "sl": {
+            "type": "number",
+            "title": "Sl",
+            "description": "Stop Loss level"
+          },
+          "tp": {
+            "type": "number",
+            "title": "Tp",
+            "description": "Take Profit level"
+          },
+          "openTime": {
+            "type": "integer",
+            "title": "Opentime",
+            "description": "Order open time (unix seconds)"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Comment"
+          },
+          "magic": {
+            "type": "integer",
+            "title": "Magic",
+            "description": "Expert Advisor ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "symbol",
+          "type",
+          "volume",
+          "price",
+          "sl",
+          "tp",
+          "openTime",
+          "comment",
+          "magic"
+        ],
+        "title": "Order"
+      },
+      "OrderCalcMarginRequest": {
+        "properties": {
+          "action": {
+            "type": "integer",
+            "title": "Action",
+            "description": "Trade operation type (ORDER_TYPE_*)"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Price"
+          }
+        },
+        "type": "object",
+        "required": ["action", "symbol", "volume", "price"],
+        "title": "OrderCalcMarginRequest"
+      },
+      "OrderCalcProfitRequest": {
+        "properties": {
+          "action": {
+            "type": "integer",
+            "title": "Action",
+            "description": "Trade operation type (ORDER_TYPE_*)"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Price"
+          },
+          "price_close": {
+            "type": "number",
+            "title": "Price Close",
+            "description": "Close price"
+          }
+        },
+        "type": "object",
+        "required": ["action", "symbol", "volume", "price", "price_close"],
+        "title": "OrderCalcProfitRequest"
+      },
+      "Position": {
+        "properties": {
+          "ticket": {
+            "type": "integer",
+            "title": "Ticket",
+            "description": "Position ticket number"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Position type: buy or sell"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Position volume in lots"
+          },
+          "priceOpen": {
+            "type": "number",
+            "title": "Priceopen",
+            "description": "Open price"
+          },
+          "priceCurrent": {
+            "type": "number",
+            "title": "Pricecurrent",
+            "description": "Current price"
+          },
+          "profit": {
+            "type": "number",
+            "title": "Profit",
+            "description": "Profit in deposit currency"
+          },
+          "swap": {
+            "type": "number",
+            "title": "Swap",
+            "description": "Swap charged"
+          },
+          "commission": {
+            "type": "number",
+            "title": "Commission",
+            "description": "Commission charged"
+          },
+          "sl": {
+            "type": "number",
+            "title": "Sl",
+            "description": "Stop Loss level"
+          },
+          "tp": {
+            "type": "number",
+            "title": "Tp",
+            "description": "Take Profit level"
+          },
+          "openTime": {
+            "type": "integer",
+            "title": "Opentime",
+            "description": "Position open time (unix seconds)"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "symbol",
+          "type",
+          "volume",
+          "priceOpen",
+          "priceCurrent",
+          "profit",
+          "swap",
+          "commission",
+          "sl",
+          "tp",
+          "openTime",
+          "comment"
+        ],
+        "title": "Position"
+      },
+      "ShutdownResponse": {
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "title": "Result",
+            "description": "Shutdown result"
+          }
+        },
+        "type": "object",
+        "required": ["result"],
+        "title": "ShutdownResponse"
+      },
+      "SymbolInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Symbol name"
+          },
+          "bid": {
+            "type": "number",
+            "title": "Bid",
+            "description": "Current bid price"
+          },
+          "ask": {
+            "type": "number",
+            "title": "Ask",
+            "description": "Current ask price"
+          },
+          "spread": {
+            "type": "integer",
+            "title": "Spread",
+            "description": "Spread in points"
+          },
+          "digits": {
+            "type": "integer",
+            "title": "Digits",
+            "description": "Digits after decimal point"
+          },
+          "tradeMode": {
+            "type": "integer",
+            "title": "Trademode",
+            "description": "Trade mode"
+          },
+          "volumeMin": {
+            "type": "number",
+            "title": "Volumemin",
+            "description": "Minimum volume"
+          },
+          "volumeMax": {
+            "type": "number",
+            "title": "Volumemax",
+            "description": "Maximum volume"
+          },
+          "volumeStep": {
+            "type": "number",
+            "title": "Volumestep",
+            "description": "Volume step"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "bid",
+          "ask",
+          "spread",
+          "digits",
+          "tradeMode",
+          "volumeMin",
+          "volumeMax",
+          "volumeStep"
+        ],
+        "title": "SymbolInfo"
+      },
+      "SymbolInfoFullResponse": {
+        "properties": {
+          "info": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Info",
+            "description": "Full symbol information"
+          }
+        },
+        "type": "object",
+        "required": ["info"],
+        "title": "SymbolInfoFullResponse"
+      },
+      "SymbolSelectRequest": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name to enable/disable"
+          },
+          "enable": {
+            "type": "boolean",
+            "title": "Enable",
+            "description": "Enable or disable symbol",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": ["symbol"],
+        "title": "SymbolSelectRequest"
+      },
+      "SymbolSelectResponse": {
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "title": "Result",
+            "description": "Operation result"
+          }
+        },
+        "type": "object",
+        "required": ["result"],
+        "title": "SymbolSelectResponse"
+      },
+      "SymbolsResponse": {
+        "properties": {
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolInfo"
+            },
+            "type": "array",
+            "title": "Symbols",
+            "description": "Available symbols"
+          }
+        },
+        "type": "object",
+        "required": ["symbols"],
+        "title": "SymbolsResponse"
+      },
+      "TerminalInfoResponse": {
+        "properties": {
+          "info": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Info",
+            "description": "Full terminal information"
+          }
+        },
+        "type": "object",
+        "required": ["info"],
+        "title": "TerminalInfoResponse"
+      },
+      "Tick": {
+        "properties": {
+          "time": {
+            "type": "integer",
+            "title": "Time",
+            "description": "Tick time (unix seconds)"
+          },
+          "bid": {
+            "type": "number",
+            "title": "Bid",
+            "description": "Bid price"
+          },
+          "ask": {
+            "type": "number",
+            "title": "Ask",
+            "description": "Ask price"
+          },
+          "last": {
+            "type": "number",
+            "title": "Last",
+            "description": "Last price"
+          },
+          "volume": {
+            "type": "integer",
+            "title": "Volume",
+            "description": "Volume"
+          },
+          "time_msc": {
+            "type": "integer",
+            "title": "Time Msc",
+            "description": "Tick time (milliseconds)"
+          },
+          "flags": {
+            "type": "integer",
+            "title": "Flags",
+            "description": "Tick flags"
+          },
+          "volume_real": {
+            "type": "number",
+            "title": "Volume Real",
+            "description": "Volume (double precision)"
+          }
+        },
+        "type": "object",
+        "required": ["time", "bid", "ask", "last", "volume", "time_msc", "flags", "volume_real"],
+        "title": "Tick"
+      },
+      "TotalResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total count"
+          }
+        },
+        "type": "object",
+        "required": ["total"],
+        "title": "TotalResponse"
+      },
+      "TradeRequest": {
+        "properties": {
+          "action": {
+            "type": "integer",
+            "title": "Action",
+            "description": "Trade operation type"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol",
+            "description": "Symbol name"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Volume in lots"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Price"
+          },
+          "sl": {
+            "type": "number",
+            "title": "Sl",
+            "description": "Stop Loss",
+            "default": 0.0
+          },
+          "tp": {
+            "type": "number",
+            "title": "Tp",
+            "description": "Take Profit",
+            "default": 0.0
+          },
+          "deviation": {
+            "type": "integer",
+            "title": "Deviation",
+            "description": "Deviation",
+            "default": 10
+          },
+          "magic": {
+            "type": "integer",
+            "title": "Magic",
+            "description": "Expert Advisor ID",
+            "default": 0
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Comment",
+            "default": ""
+          },
+          "type_time": {
+            "type": "integer",
+            "title": "Type Time",
+            "description": "Order expiration type",
+            "default": 0
+          },
+          "type_filling": {
+            "type": "integer",
+            "title": "Type Filling",
+            "description": "Order filling type",
+            "default": 0
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position",
+            "description": "Position ticket",
+            "default": 0
+          },
+          "position_by": {
+            "type": "integer",
+            "title": "Position By",
+            "description": "Opposite position",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": ["action", "symbol", "volume", "price"],
+        "title": "TradeRequest"
+      },
+      "TradeResult": {
+        "properties": {
+          "retcode": {
+            "type": "integer",
+            "title": "Retcode",
+            "description": "Return code"
+          },
+          "deal": {
+            "type": "integer",
+            "title": "Deal",
+            "description": "Deal ticket"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "description": "Order ticket"
+          },
+          "volume": {
+            "type": "number",
+            "title": "Volume",
+            "description": "Deal volume"
+          },
+          "price": {
+            "type": "number",
+            "title": "Price",
+            "description": "Deal price"
+          },
+          "bid": {
+            "type": "number",
+            "title": "Bid",
+            "description": "Current bid"
+          },
+          "ask": {
+            "type": "number",
+            "title": "Ask",
+            "description": "Current ask"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment",
+            "description": "Server comment"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request",
+            "description": "Original request"
+          }
+        },
+        "type": "object",
+        "required": [
+          "retcode",
+          "deal",
+          "order",
+          "volume",
+          "price",
+          "bid",
+          "ask",
+          "comment",
+          "request"
+        ],
+        "title": "TradeResult"
+      },
+      "TradesResponse": {
+        "properties": {
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/Position"
+            },
+            "type": "array",
+            "title": "Positions",
+            "description": "Open positions"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            },
+            "type": "array",
+            "title": "Orders",
+            "description": "Pending orders"
+          }
+        },
+        "type": "object",
+        "required": ["positions", "orders"],
+        "title": "TradesResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      },
+      "VersionResponse": {
+        "properties": {
+          "major": {
+            "type": "integer",
+            "title": "Major",
+            "description": "Major version"
+          },
+          "minor": {
+            "type": "integer",
+            "title": "Minor",
+            "description": "Minor version"
+          },
+          "build": {
+            "type": "integer",
+            "title": "Build",
+            "description": "Build number"
+          },
+          "release_date": {
+            "type": "integer",
+            "title": "Release Date",
+            "description": "Release date (unix timestamp)"
+          }
+        },
+        "type": "object",
+        "required": ["major", "minor", "build", "release_date"],
+        "title": "VersionResponse"
+      }
+    }
+  }
+}

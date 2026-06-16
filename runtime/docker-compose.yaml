@@ -1,0 +1,75 @@
+x-mt5-common: &mt5-common
+  image: mt5-tigervnc:latest
+  restart: unless-stopped
+  networks:
+    - mt5-net
+  volumes:
+    - mt5-shared:/mt5-shared
+  environment:
+    - PASSWORD=${PASSWORD:-changeme}
+    - ENABLE_FILEBROWSER=false
+    - ENABLE_API=false
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - seccomp=unconfined
+  stdin_open: true
+  tty: true
+
+services:
+  mt5:
+    <<: *mt5-common
+    container_name: mt5
+    environment:
+      INSTANCE_NAME: mt5
+      ENABLE_FILEBROWSER: true
+    volumes:
+      - mt5-shared:/mt5-shared
+      - mt5-instance-data:/mt5-instance
+      - mt5-wine:/config/.wine
+
+  mt5-2:
+    <<: *mt5-common
+    container_name: mt5-2
+    environment:
+      INSTANCE_NAME: mt5-2
+    volumes:
+      - mt5-shared:/mt5-shared
+      - mt5-instance2-data:/mt5-instance
+      - mt5-instance2-wine:/config/.wine
+
+volumes:
+  mt5-shared:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/mt5/shared
+      o: bind
+  mt5-instance-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/mt5/instances/mt5/data
+      o: bind
+  mt5-wine:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/mt5/instances/mt5/wine
+      o: bind
+  mt5-instance2-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/mt5/instances/mt5-2/data
+      o: bind
+  mt5-instance2-wine:
+    driver: local
+    driver_opts:
+      type: none
+      device: /root/mt5/instances/mt5-2/wine
+      o: bind
+
+networks:
+  mt5-net:
+    external: true

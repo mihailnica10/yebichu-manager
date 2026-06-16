@@ -1,0 +1,10 @@
+{
+  "name": "@mt5/socket-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  }
+}

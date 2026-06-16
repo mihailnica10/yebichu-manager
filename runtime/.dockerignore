@@ -1,0 +1,5 @@
+instances/
+profiles/
+build.log
+*.md
+.git
