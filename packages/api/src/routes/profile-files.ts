@@ -12,9 +12,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { getActorId, logAudit } from "../audit";
 
-const CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/home/misu/bank/Profiles/Charts";
-const TEMPLATES_DIR = process.env.PROFILES_TEMPLATES_DIR || "/home/misu/bank/Profiles/Templates";
-const SYMBOLSETS_DIR = process.env.PROFILES_SYMBOLSETS_DIR || "/home/misu/bank/Profiles/SymbolSets";
+const CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/var/lib/mt5/profiles/Charts";
+const TEMPLATES_DIR = process.env.PROFILES_TEMPLATES_DIR || "/var/lib/mt5/profiles/Templates";
+const SYMBOLSETS_DIR = process.env.PROFILES_SYMBOLSETS_DIR || "/var/lib/mt5/profiles/SymbolSets";
 
 const FileInfoSchema = z.object({
   name: z.string().openapi({ example: "chart01.chr" }),

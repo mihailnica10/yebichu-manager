@@ -9,8 +9,8 @@ import { checkDockerAvailable, checkImageExists } from "../docker";
 
 const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
 const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
-const RUNTIME_DIR = process.env.RUNTIME_DIR || "/home/misu/mt5-manager/runtime";
-const BRIDGE_SRC = process.env.BRIDGE_SRC || "/home/misu/mt5-manager/scripts/mt5-bridge";
+const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
+const BRIDGE_SRC = process.env.BRIDGE_SRC || "/opt/mt5-manager/scripts/mt5-bridge";
 
 const StatusResponse = z
   .object({

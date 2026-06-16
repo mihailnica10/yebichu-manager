@@ -44,11 +44,11 @@ const CreateInstanceBody = z.object({
 const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
 const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
 const MAX_INSTANCES = Number.parseInt(process.env.MAX_INSTANCES || "10");
-const PROFILES_CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/home/misu/bank/Profiles/Charts";
+const PROFILES_CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/var/lib/mt5/profiles/Charts";
 const PROFILES_TEMPLATES_DIR =
-  process.env.PROFILES_TEMPLATES_DIR || "/home/misu/bank/Profiles/Templates";
+  process.env.PROFILES_TEMPLATES_DIR || "/var/lib/mt5/profiles/Templates";
 const PROFILES_SYMBOLSETS_DIR =
-  process.env.PROFILES_SYMBOLSETS_DIR || "/home/misu/bank/Profiles/SymbolSets";
+  process.env.PROFILES_SYMBOLSETS_DIR || "/var/lib/mt5/profiles/SymbolSets";
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || "minio:9000";
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
@@ -348,8 +348,8 @@ function generateComposeContent(
   managementMode?: boolean,
 ): string {
   const instDir = `${INSTANCES_DIR}/${name}`;
-  const BRIDGE_SRC = process.env.BRIDGE_SRC || "/home/misu/mt5-manager/scripts/mt5-bridge";
-  const RUNTIME_DIR = process.env.RUNTIME_DIR || "/home/misu/mt5-manager/runtime";
+  const BRIDGE_SRC = process.env.BRIDGE_SRC || "/opt/mt5-manager/scripts/mt5-bridge";
+  const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
   const lines: string[] = [];
   lines.push(`services:
   ${name}:
@@ -1049,7 +1049,7 @@ export function instanceRoutes(app: OpenAPIHono) {
       .get();
     if (!inst) return c.json({ error: "not found" }, 404);
 
-    const _RUNTIME_DIR = process.env.RUNTIME_DIR || "/home/misu/mt5-manager/runtime";
+    const _RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
     const { buildImage } = await import("../docker");
     const buildResult = buildImage();
     if (!buildResult.success) {

@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 
 const IMAGE_TAG = "mt5-tigervnc:latest";
-const RUNTIME_DIR = process.env.RUNTIME_DIR || "/home/misu/mt5-manager/runtime";
+const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
 
 export function checkDockerAvailable(): boolean {
   try {
