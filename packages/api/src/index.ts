@@ -11,6 +11,7 @@ import { instanceRoutes } from "./routes/instances";
 import { marketRoutes } from "./routes/market";
 import { profileFileRoutes } from "./routes/profile-files";
 import { profileRoutes } from "./routes/profiles";
+import { rpaRoutes } from "./routes/rpa";
 import { systemRoutes } from "./routes/system";
 
 syncSchema()
@@ -31,6 +32,7 @@ export function createApp() {
   profileFileRoutes(app);
   profileRoutes(app);
   auditLogRoutes(app);
+  rpaRoutes(app);
   marketRoutes(app);
 
   startMetricsCollection();

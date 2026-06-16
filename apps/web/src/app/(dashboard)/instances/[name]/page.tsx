@@ -2,6 +2,7 @@
 import { InstanceActions } from "@/components/instance-actions";
 import { InstanceResources } from "@/components/instance-resources";
 import { MarketPanel } from "@/components/market-panel";
+import { RPAPanel } from "@/components/rpa-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -179,7 +180,14 @@ export default function InstanceDetailPage() {
           </TabsContent>
 
           <TabsContent value="webvnc" className="mt-4">
-            <WebVncTab instance={instance} host={HOST} />
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              <div className="xl:col-span-2">
+                <WebVncTab instance={instance} host={HOST} />
+              </div>
+              <div className="xl:col-span-1">
+                <RPAPanel name={instance.name} />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="resources" className="mt-4">
