@@ -38,10 +38,12 @@ export function getDockerVersion(): string {
 
 export function buildImage(): { success: boolean; output: string } {
   try {
-    const out = execSync(`docker build -t ${IMAGE_TAG} ${RUNTIME_DIR}`, {
+    const projectRoot = RUNTIME_DIR.replace(/\/runtime$/, "");
+    const out = execSync(`docker build -t ${IMAGE_TAG} -f runtime/Dockerfile .`, {
       encoding: "utf-8",
       maxBuffer: 1024 * 1024 * 10,
       timeout: 1800000,
+      cwd: projectRoot,
     });
     return { success: true, output: out };
   } catch (err: any) {

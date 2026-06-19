@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -40,11 +41,11 @@ function StepIndicator({ current, skipMap }: { current: number; skipMap: Record<
               className={cn(
                 "flex size-8 items-center justify-center rounded-full text-xs font-medium transition-all duration-300",
                 current === s.num
-                  ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+                  ? "bg-foreground text-background ring-2 ring-foreground/20"
                   : skipMap[s.num]
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-foreground/10 text-foreground"
                     : current > s.num
-                      ? "bg-primary/20 text-primary"
+                      ? "bg-foreground/15 text-foreground"
                       : "bg-muted text-muted-foreground",
               )}
             >
@@ -62,7 +63,7 @@ function StepIndicator({ current, skipMap }: { current: number; skipMap: Record<
                 current === s.num
                   ? "text-foreground"
                   : current > s.num
-                    ? "text-primary/70"
+                    ? "text-foreground/70"
                     : "text-muted-foreground",
               )}
             >
@@ -73,7 +74,7 @@ function StepIndicator({ current, skipMap }: { current: number; skipMap: Record<
             <div
               className={cn(
                 "mx-2 h-px w-10 transition-colors",
-                current > s.num ? "bg-primary/40" : "bg-border",
+                current > s.num ? "bg-foreground/30" : "bg-border",
               )}
             />
           )}
@@ -127,7 +128,7 @@ function CreateAccountStep({ onSuccess, skip }: { onSuccess: () => void; skip: b
   if (skip) {
     return (
       <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
-        <CheckCircle2 className="size-4 text-primary" />
+        <CheckCircle2 className="size-4 text-foreground" />
         <span>Admin account already exists</span>
       </div>
     );
@@ -222,7 +223,7 @@ function DockerCheckStep({ onContinue, skip }: { onContinue: () => void; skip: b
   if (skip) {
     return (
       <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
-        <CheckCircle2 className="size-4 text-primary" />
+        <CheckCircle2 className="size-4 text-foreground" />
         <span>Docker is ready — image found</span>
       </div>
     );
@@ -302,7 +303,7 @@ function DockerCheckStep({ onContinue, skip }: { onContinue: () => void; skip: b
 
   return (
     <div className="flex flex-col items-center gap-4 py-6 text-center">
-      <CheckCircle2 className="size-10 text-primary" />
+      <CheckCircle2 className="size-10 text-foreground" />
       <p className="text-sm font-medium">Docker image ready</p>
       <p className="text-xs text-muted-foreground">
         Docker {data?.docker?.version} — mt5-tigervnc:latest
@@ -376,7 +377,7 @@ function ManagementInstanceStep({ onComplete, skip }: { onComplete: (info: VncIn
   if (status === "ready") {
     return (
       <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
-        <CheckCircle2 className="size-4 text-primary" />
+        <CheckCircle2 className="size-4 text-foreground" />
         <span>Management instance is running</span>
       </div>
     );
@@ -443,7 +444,7 @@ function ReadyStep({ vncInfo, onGoToDashboard }: { vncInfo: VncInfo | null; onGo
 
   return (
     <div className="flex flex-col items-center gap-4 py-2 text-center">
-      <CheckCircle2 className="size-14 text-primary" />
+      <CheckCircle2 className="size-14 text-foreground" />
       <div>
         <h2 className="text-lg font-semibold font-display">Setup complete!</h2>
         <p className="text-sm text-muted-foreground mt-1">
@@ -510,7 +511,7 @@ export default function SetupPage() {
   if (statusQuery.isLoading) {
     return (
       <div className="relative flex min-h-svh w-full flex-col items-center justify-center bg-background">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom_right,color-mix(in_oklch,var(--primary)_4%,transparent),transparent_40%,color-mix(in_oklch,var(--primary)_3%,transparent)_70%,transparent)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom_right,color-mix(in_oklch,var(--foreground)_3%,transparent),transparent_40%,color-mix(in_oklch,var(--foreground)_2%,transparent)_70%,transparent)]" />
         <SplashScreen />
       </div>
     );
@@ -550,14 +551,17 @@ export default function SetupPage() {
 
   return (
     <div className="relative flex min-h-svh w-full flex-col items-center justify-center gap-6 overflow-hidden bg-background p-4 md:p-10">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom_right,color-mix(in_oklch,var(--primary)_4%,transparent),transparent_40%,color-mix(in_oklch,var(--primary)_3%,transparent)_70%,transparent)]" />
-      <div className="pointer-events-none absolute -top-48 -left-48 size-96 rounded-full bg-primary/5 blur-3xl max-md:hidden" />
-      <div className="pointer-events-none absolute -bottom-48 -right-48 size-96 rounded-full bg-primary/5 blur-3xl max-md:hidden" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom_right,color-mix(in_oklch,var(--foreground)_3%,transparent),transparent_40%,color-mix(in_oklch,var(--foreground)_2%,transparent)_70%,transparent)]" />
+      <div className="pointer-events-none absolute -top-48 -left-48 size-96 rounded-full bg-foreground/[3%] blur-3xl max-md:hidden" />
+      <div className="pointer-events-none absolute -bottom-48 -right-48 size-96 rounded-full bg-foreground/[3%] blur-3xl max-md:hidden" />
 
       <div className="relative z-10 flex w-full max-w-md flex-col gap-8">
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="font-display text-2xl tracking-tight">Setup Wizard</h1>
-          <p className="text-sm text-muted-foreground">Configure your MT5 Manager</p>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="font-display text-2xl tracking-tight">Setup Wizard</h1>
+            <p className="text-sm text-muted-foreground">Configure your MT5 Manager</p>
+          </div>
+          <ThemeSwitcher />
         </div>
 
         <StepIndicator current={currentStep} skipMap={skipMap} />
