@@ -450,3 +450,56 @@ export async function bridgeSyncPull(
 ): Promise<any> {
   return request<any>(instanceName, "/sync/pull", undefined, { configSets });
 }
+
+// ---- Market stream helpers (raw fetch, no error throwing) ----
+
+export async function fetchBridgeOHLC(
+  instanceName: string,
+  symbol: string,
+  timeframe: string,
+  count = 100,
+): Promise<any[]> {
+  const config = await getBridgeConfig(instanceName);
+  if (!config) return [];
+  try {
+    const res = await fetch(
+      `http://localhost:${config.port}/ohlc?symbol=${symbol}&timeframe=${timeframe}&count=${count}`,
+    );
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchBridgePositions(instanceName: string): Promise<any[]> {
+  const config = await getBridgeConfig(instanceName);
+  if (!config) return [];
+  try {
+    const res = await fetch(`http://localhost:${config.port}/positions`);
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchBridgeOrders(instanceName: string): Promise<any[]> {
+  const config = await getBridgeConfig(instanceName);
+  if (!config) return [];
+  try {
+    const res = await fetch(`http://localhost:${config.port}/orders`);
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchBridgeAccount(instanceName: string): Promise<any> {
+  const config = await getBridgeConfig(instanceName);
+  if (!config) return null;
+  try {
+    const res = await fetch(`http://localhost:${config.port}/account`);
+    return await res.json();
+  } catch {
+    return null;
+  }
+}

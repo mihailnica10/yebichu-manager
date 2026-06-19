@@ -5,8 +5,8 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { getDb, schema } from "@mt5/db";
 import { getActorId } from "../audit";
 import { buildImage, checkDockerAvailable, checkImageExists, getDockerVersion } from "../docker";
+import { INSTANCES_DIR } from "../shared/paths";
 
-const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
 const DB_PATH = process.env.DB_PATH || "/tmp/mt5-manager.db";
 
 const StatusResponse = z

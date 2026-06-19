@@ -11,10 +11,7 @@ import { basename, join } from "node:path";
 import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { getActorId, logAudit } from "../audit";
-
-const CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/var/lib/mt5/profiles/Charts";
-const TEMPLATES_DIR = process.env.PROFILES_TEMPLATES_DIR || "/var/lib/mt5/profiles/Templates";
-const SYMBOLSETS_DIR = process.env.PROFILES_SYMBOLSETS_DIR || "/var/lib/mt5/profiles/SymbolSets";
+import { getChartsDir, getTemplatesDir, getSymbolsetsDir } from "../shared/constants";
 
 const FileInfoSchema = z.object({
   name: z.string().openapi({ example: "chart01.chr" }),
@@ -307,14 +304,14 @@ export function profileFileRoutes(app: OpenAPIHono) {
   app.openapi(listChartsRoute, async (c) => {
     const actorId = await getActorId(c);
     if (!actorId) return c.json({ error: "unauthorized" }, 401);
-    ensureDir(CHARTS_DIR);
-    const sets = readdirSync(CHARTS_DIR, { withFileTypes: true })
+    ensureDir(getChartsDir());
+    const sets = readdirSync(getChartsDir(), { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => ({
         name: d.name,
-        files: readdirSync(join(CHARTS_DIR, d.name)).map((f) => ({
+        files: readdirSync(join(getChartsDir(), d.name)).map((f) => ({
           name: f,
-          size: statSync(join(CHARTS_DIR, d.name, f)).size,
+          size: statSync(join(getChartsDir(), d.name, f)).size,
         })),
       }));
     return c.json({ chartSets: sets });
@@ -326,7 +323,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const setDir = join(CHARTS_DIR, safeName);
+    const setDir = join(getChartsDir(), safeName);
     if (!existsSync(setDir)) return c.json({ error: "not found" }, 404);
     const files = readdirSync(setDir).map((f) => ({
       name: f,
@@ -342,7 +339,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
     const { files } = c.req.valid("json");
-    const setDir = join(CHARTS_DIR, safeName);
+    const setDir = join(getChartsDir(), safeName);
     mkdirSync(setDir, { recursive: true });
     for (const file of files) {
       writeFileSync(join(setDir, file.name), Buffer.from(file.content, "base64"));
@@ -359,7 +356,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const setDir = join(CHARTS_DIR, safeName);
+    const setDir = join(getChartsDir(), safeName);
     if (!existsSync(setDir)) return c.json({ error: "not found" }, 404);
     rmSync(setDir, { recursive: true, force: true });
     await logAudit("profile_charts_delete", actorId, "profile", name, { name });
@@ -372,7 +369,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const setDir = join(CHARTS_DIR, safeName);
+    const setDir = join(getChartsDir(), safeName);
     if (!existsSync(setDir)) return c.json({ error: "not found" }, 404);
 
     const body = await c.req.parseBody();
@@ -391,8 +388,8 @@ export function profileFileRoutes(app: OpenAPIHono) {
   app.openapi(listTemplatesRoute, async (c) => {
     const actorId = await getActorId(c);
     if (!actorId) return c.json({ error: "unauthorized" }, 401);
-    ensureDir(TEMPLATES_DIR);
-    const templates = listDirWithStats(TEMPLATES_DIR);
+    ensureDir(getTemplatesDir());
+    const templates = listDirWithStats(getTemplatesDir());
     return c.json({ templates });
   });
 
@@ -402,7 +399,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const filePath = join(TEMPLATES_DIR, safeName);
+    const filePath = join(getTemplatesDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     const content = readFileSync(filePath).toString("base64");
     return c.json({ name, content });
@@ -412,9 +409,9 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const actorId = await getActorId(c);
     if (!actorId) return c.json({ error: "unauthorized" }, 401);
     const { name, content } = c.req.valid("json");
-    const filePath = join(TEMPLATES_DIR, name);
+    const filePath = join(getTemplatesDir(), name);
     if (existsSync(filePath)) return c.json({ error: "template already exists" }, 409);
-    ensureDir(TEMPLATES_DIR);
+    ensureDir(getTemplatesDir());
     writeFileSync(filePath, Buffer.from(content, "base64"));
     await logAudit("profile_template_create", actorId, "profile", name, { name });
     return c.json({ status: "created", name }, 201);
@@ -427,7 +424,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
     const { content } = c.req.valid("json");
-    const filePath = join(TEMPLATES_DIR, safeName);
+    const filePath = join(getTemplatesDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     writeFileSync(filePath, Buffer.from(content, "base64"));
     await logAudit("profile_template_update", actorId, "profile", name, { name });
@@ -440,7 +437,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const filePath = join(TEMPLATES_DIR, safeName);
+    const filePath = join(getTemplatesDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     rmSync(filePath, { force: true });
     await logAudit("profile_template_delete", actorId, "profile", name, { name });
@@ -452,8 +449,8 @@ export function profileFileRoutes(app: OpenAPIHono) {
   app.openapi(listSymbolSetsRoute, async (c) => {
     const actorId = await getActorId(c);
     if (!actorId) return c.json({ error: "unauthorized" }, 401);
-    ensureDir(SYMBOLSETS_DIR);
-    const symbolSets = listDirWithStats(SYMBOLSETS_DIR);
+    ensureDir(getSymbolsetsDir());
+    const symbolSets = listDirWithStats(getSymbolsetsDir());
     return c.json({ symbolSets });
   });
 
@@ -463,7 +460,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const filePath = join(SYMBOLSETS_DIR, safeName);
+    const filePath = join(getSymbolsetsDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     const content = readFileSync(filePath).toString("base64");
     return c.json({ name, content });
@@ -473,9 +470,9 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const actorId = await getActorId(c);
     if (!actorId) return c.json({ error: "unauthorized" }, 401);
     const { name, content } = c.req.valid("json");
-    const filePath = join(SYMBOLSETS_DIR, name);
+    const filePath = join(getSymbolsetsDir(), name);
     if (existsSync(filePath)) return c.json({ error: "symbol set already exists" }, 409);
-    ensureDir(SYMBOLSETS_DIR);
+    ensureDir(getSymbolsetsDir());
     writeFileSync(filePath, Buffer.from(content, "base64"));
     await logAudit("profile_symbolset_create", actorId, "profile", name, { name });
     return c.json({ status: "created", name }, 201);
@@ -488,7 +485,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
     const { content } = c.req.valid("json");
-    const filePath = join(SYMBOLSETS_DIR, safeName);
+    const filePath = join(getSymbolsetsDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     writeFileSync(filePath, Buffer.from(content, "base64"));
     await logAudit("profile_symbolset_update", actorId, "profile", name, { name });
@@ -501,7 +498,7 @@ export function profileFileRoutes(app: OpenAPIHono) {
     const { name } = c.req.valid("param");
     const safeName = sanitizeProfileName(name);
     if (!safeName) return c.json({ error: "invalid name" }, 400);
-    const filePath = join(SYMBOLSETS_DIR, safeName);
+    const filePath = join(getSymbolsetsDir(), safeName);
     if (!existsSync(filePath)) return c.json({ error: "not found" }, 404);
     rmSync(filePath, { force: true });
     await logAudit("profile_symbolset_delete", actorId, "profile", name, { name });

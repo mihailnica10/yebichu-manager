@@ -5,12 +5,16 @@ import { useEffect, useRef, useState } from "react";
 
 interface VncViewerProps {
   wsUrl: string;
+  vncPassword?: string;
   onDisconnect?: () => void;
 }
 
-export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
+export function VncViewer({ wsUrl, vncPassword, onDisconnect }: VncViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<any>(null);
+  const nonRecoverableRef = useRef(false);
+  const onDisconnectRef = useRef(onDisconnect);
+  useEffect(() => { onDisconnectRef.current = onDisconnect; });
   const [status, setStatus] = useState<"connecting" | "connected" | "disconnected" | "error">(
     "connecting",
   );
@@ -19,10 +23,20 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
   useEffect(() => {
     if (!containerRef.current || !wsUrl) return;
 
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setStatus("error");
+      setErrorMsg("HTTPS Required. VNC connections require a secure context (TLS). Use HTTPS or connect via a VNC client directly.");
+      return;
+    }
+
+    nonRecoverableRef.current = false;
+
     let rfb: any;
     let mounted = true;
     let retryTimer: ReturnType<typeof setTimeout>;
     let retryCount = 0;
+
+    let connected = false;
 
     async function connect() {
       try {
@@ -31,23 +45,25 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
 
         setStatus("connecting");
         rfb = new RFB(containerRef.current, wsUrl, {
-          credentials: { password: "" },
+          credentials: { password: vncPassword ?? "" },
           repeaterID: "",
           shared: true,
         });
         rfbRef.current = rfb;
 
         rfb.addEventListener("connect", () => {
+          connected = true;
           if (mounted) {
             setStatus("connected");
             retryCount = 0;
           }
         });
         rfb.addEventListener("disconnect", () => {
+          connected = false;
           if (mounted) {
             setStatus("disconnected");
-            onDisconnect?.();
-            if (retryCount < 10) {
+            onDisconnectRef.current?.();
+            if (!nonRecoverableRef.current && retryCount < 10) {
               retryCount++;
               const delay = Math.min(1000 * 2 ** retryCount, 15000);
               retryTimer = setTimeout(connect, delay);
@@ -56,13 +72,9 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
         });
         rfb.addEventListener("securityfailure", (e: any) => {
           if (mounted) {
+            nonRecoverableRef.current = true;
             setStatus("error");
-            setErrorMsg(e.detail || "Authentication failed");
-            if (retryCount < 10) {
-              retryCount++;
-              const delay = Math.min(1000 * 2 ** retryCount, 15000);
-              retryTimer = setTimeout(connect, delay);
-            }
+            setErrorMsg(e.detail?.reason || "Authentication failed");
           }
         });
         rfb.addEventListener("desktopname", () => {
@@ -90,14 +102,14 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
     return () => {
       mounted = false;
       clearTimeout(retryTimer);
-      if (rfb) {
+      if (rfb && connected) {
         try {
           rfb.disconnect();
         } catch {}
         rfbRef.current = null;
       }
     };
-  }, [wsUrl, onDisconnect]);
+  }, [wsUrl, vncPassword]);
 
   useEffect(() => {
     function handleResize() {
@@ -109,7 +121,7 @@ export function VncViewer({ wsUrl, onDisconnect }: VncViewerProps) {
     }
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [wsUrl]);
 
   return (
     <div className="relative flex flex-col items-center bg-black rounded-lg overflow-hidden">

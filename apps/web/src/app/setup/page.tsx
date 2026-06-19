@@ -85,20 +85,23 @@ function StepIndicator({ current, skipMap }: { current: number; skipMap: Record<
 
 function SplashScreen() {
   return (
-    <div className="flex flex-col items-center gap-6 py-16">
+    <div className="flex flex-col items-center justify-center gap-6 min-h-svh w-full px-4">
       <Image
         src="/yebichu-logo.svg"
         alt="YEBICHU"
-        width={64}
-        height={56}
+        width={96}
+        height={84}
         className="opacity-80"
+        priority
       />
       <div className="text-center">
         <h1 className="font-display text-3xl font-black tracking-tight">YEBICHU</h1>
         <p className="text-sm text-muted-foreground mt-1">MT5 Manager</p>
       </div>
-      <Spinner className="size-6" />
-      <p className="text-xs text-muted-foreground animate-pulse">Checking setup status…</p>
+      <div className="flex flex-col items-center gap-3">
+        <Spinner className="size-6" />
+        <p className="text-xs text-muted-foreground animate-pulse">Checking setup status…</p>
+      </div>
     </div>
   );
 }
@@ -111,12 +114,13 @@ function CreateAccountStep({ onSuccess, skip }: { onSuccess: () => void; skip: b
   const mutation = useMutation({
     mutationFn: (data: { email: string; name: string; password: string }) =>
       api.post("/auth/sign-up", data),
-    onSuccess: () => {
-      toast.success("Account created");
+    onMutate: () => ({ toastId: toast.loading("Creating account...") }),
+    onSuccess: (_data, _vars, ctx) => {
+      toast.success("Account created", { id: ctx?.toastId });
       onSuccess();
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to create account");
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message || "Failed to create account", { id: ctx?.toastId });
     },
   });
 
@@ -191,24 +195,26 @@ function DockerCheckStep({ onContinue, skip }: { onContinue: () => void; skip: b
 
   const buildMutation = useMutation({
     mutationFn: () => api.post("/install/build-image"),
-    onSuccess: () => {
-      toast.success("Build started");
+    onMutate: () => ({ toastId: toast.loading("Starting build...") }),
+    onSuccess: (_data, _vars, ctx) => {
+      toast.success("Build started", { id: ctx?.toastId });
       setBuilding(true);
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to start build");
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message || "Failed to start build", { id: ctx?.toastId });
       setBuilding(false);
     },
   });
 
   const installMutation = useMutation({
     mutationFn: () => api.post("/install/docker"),
-    onSuccess: () => {
-      toast.success("Docker installed");
+    onMutate: () => ({ toastId: toast.loading("Installing Docker...") }),
+    onSuccess: (_data, _vars, ctx) => {
+      toast.success("Docker installed", { id: ctx?.toastId });
       setInstalling(true);
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to install Docker");
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message || "Failed to install Docker", { id: ctx?.toastId });
       setInstalling(false);
     },
   });
@@ -320,8 +326,10 @@ function ManagementInstanceStep({ onComplete, skip }: { onComplete: (info: VncIn
 
   const mutation = useMutation({
     mutationFn: () => api.post("/setup/management-instance"),
-    onSuccess: (res) => {
+    onMutate: () => ({ toastId: toast.loading("Creating management instance...") }),
+    onSuccess: (res, _vars, ctx) => {
       setStatus("detecting");
+      toast.success("Instance created, detecting ports...", { id: ctx?.toastId });
       const poll = setInterval(async () => {
         try {
           const mgmt = await api.get("/instances/mt5-mgmt").then((r) => r.data);
@@ -333,10 +341,16 @@ function ManagementInstanceStep({ onComplete, skip }: { onComplete: (info: VncIn
           }
         } catch {}
       }, 2000);
-      setTimeout(() => clearInterval(poll), 30000);
+      const timeout = setTimeout(() => {
+        clearInterval(poll);
+        if (status === "detecting") {
+          setStatus("error");
+          toast.error("Timed out waiting for management instance. Check Docker logs.");
+        }
+      }, 30000);
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to create instance");
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message || "Failed to create instance", { id: ctx?.toastId });
       setStatus("idle");
     },
   });
@@ -419,8 +433,12 @@ function ManagementInstanceStep({ onComplete, skip }: { onComplete: (info: VncIn
 function ReadyStep({ vncInfo, onGoToDashboard }: { vncInfo: VncInfo | null; onGoToDashboard: () => void }) {
   const mutation = useMutation({
     mutationFn: () => api.post("/setup/complete"),
-    onSuccess: () => onGoToDashboard(),
-    onError: (err: Error) => toast.error(err.message || "Failed to complete setup"),
+    onMutate: () => ({ toastId: toast.loading("Finalizing setup...") }),
+    onSuccess: (_data, _vars, ctx) => {
+      toast.success("Setup complete! Redirecting...", { id: ctx?.toastId });
+      onGoToDashboard();
+    },
+    onError: (err: Error, _vars, ctx) => toast.error(err.message || "Failed to complete setup", { id: ctx?.toastId }),
   });
 
   return (
@@ -484,10 +502,10 @@ export default function SetupPage() {
   });
 
   useEffect(() => {
-    if (statusQuery.data?.completed) {
+    if (statusQuery.data?.healthy) {
       router.replace("/instances");
     }
-  }, [statusQuery.data?.completed, router]);
+  }, [statusQuery.data?.healthy, router]);
 
   if (statusQuery.isLoading) {
     return (
@@ -497,15 +515,26 @@ export default function SetupPage() {
       </div>
     );
   }
+  if (statusQuery.isError) {
+    return (
+      <div className="relative flex min-h-svh w-full flex-col items-center justify-center bg-background p-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <p className="text-destructive font-medium">Could not check setup status</p>
+          <p className="text-sm text-muted-foreground">Make sure the server is running and reachable.</p>
+          <Button variant="outline" size="sm" onClick={() => statusQuery.refetch()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   const status = statusQuery.data;
 
-  if (status?.completed) return null;
+  if (status?.healthy) return null;
 
   const skipMap: Record<number, boolean> = {};
   if (status?.hasUsers) skipMap[1] = true;
   if (status?.dockerAvailable && status?.imageExists) skipMap[2] = true;
-  if (status?.hasManagementInstance) skipMap[3] = true;
+  if (status?.managementInstanceRunning) skipMap[3] = true;
 
   const currentStep = (() => {
     if (step !== 0) {

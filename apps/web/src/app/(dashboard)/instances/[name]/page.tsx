@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { VncViewer } from "@/components/vnc-viewer";
 import {
+  useBridgeStatus,
   useInstanceConfig,
   useInstanceEvents,
   useInstanceLogs,
@@ -59,6 +60,7 @@ export default function InstanceDetailPage() {
   const event = useInstanceEvents(name);
   const configEvent = useInstanceConfig();
   const { isConnected } = useSocket();
+  const { status: bridgeStatus } = useBridgeStatus(name);
   const liveLogs = useInstanceLogs(name);
   const logLines = liveLogs.map((l) => l.text);
   const logsScrollRef = useRef<HTMLDivElement>(null);
@@ -121,14 +123,28 @@ export default function InstanceDetailPage() {
 
   if (isLoading)
     return (
-      <div className="flex justify-center p-8">
-        <Spinner />
+      <div className="space-y-6">
+        <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="h-7 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-8 w-16 bg-muted rounded animate-pulse" />
+            <div className="h-8 w-16 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="h-10 w-24 bg-muted rounded animate-pulse" />))}
+        </div>
+        <div className="h-96 bg-muted rounded-xl animate-pulse" />
       </div>
     );
   if (!instance)
     return <div className="p-8 text-center text-muted-foreground">Instance not found</div>;
 
-  const HOST = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const HOST = process.env.NEXT_PUBLIC_VNC_HOST || (typeof window !== "undefined" ? window.location.hostname : "localhost");
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -154,8 +170,20 @@ export default function InstanceDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground">Instance</p>
           </div>
-          <div className="ms-auto">
-            <InstanceActions
+            <div className="flex items-center gap-2">
+              <div className={`size-2 rounded-full ${
+                bridgeStatus?.mt5 === "connected" ? "bg-green-500"
+                : bridgeStatus?.mt5 === "disconnected" ? "bg-red-500"
+                : "bg-amber-500"
+              }`} />
+              <span className="text-xs text-muted-foreground">
+                {bridgeStatus?.mt5 === "connected" ? "MT5 Connected"
+                 : bridgeStatus?.mt5 === "disconnected" ? "MT5 Disconnected"
+                 : "Checking..."}
+              </span>
+            </div>
+            <div className="ms-auto">
+              <InstanceActions
               name={instance.name}
               containerRunning={instance.containerRunning}
               variant="full"
@@ -464,7 +492,7 @@ function WebVncTab({ instance, host }: { instance: InstanceDetail; host: string 
         </Button>
       </CardHeader>
       <CardContent>
-        <VncViewer wsUrl={wsUrl} />
+        <VncViewer wsUrl={wsUrl} vncPassword={instance.vncPassword} />
       </CardContent>
     </Card>
   );
@@ -473,7 +501,7 @@ function WebVncTab({ instance, host }: { instance: InstanceDetail; host: string 
 function ConfigEditor({ name }: { name: string }) {
   const qc = useQueryClient();
 
-  const { data: config } = useQuery({
+  const { data: config, isLoading: isConfigLoading } = useQuery({
     queryKey: ["config", name],
     queryFn: async () => {
       const res = await api.get(`/instances/${name}/config`);
@@ -483,15 +511,16 @@ function ConfigEditor({ name }: { name: string }) {
   });
 
   const updateMut = useMutation({
-    mutationFn: async (body: any) => {
+    mutationFn: async (body: { serverIni: string; commonJson: string }) => {
       await api.put(`/instances/${name}/config`, body);
     },
-    onSuccess: () => {
+    onMutate: () => ({ toastId: toast.loading("Saving config...") }),
+    onSuccess: (_data, _vars, ctx) => {
       qc.invalidateQueries({ queryKey: ["config", name] });
-      toast.success("Config saved");
+      toast.success("Config saved", { id: ctx?.toastId });
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message, { id: ctx?.toastId });
     },
   });
 
@@ -526,6 +555,17 @@ function ConfigEditor({ name }: { name: string }) {
       commonJson,
     });
     setShowRestartPrompt(true);
+  }
+
+  if (isConfigLoading) {
+    return (
+      <div className="space-y-4 p-4">
+        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-40 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-40 animate-pulse rounded bg-muted" />
+      </div>
+    );
   }
 
   return (

@@ -16,3 +16,57 @@ export function formatBytes(bytes: number): string {
   if (kb >= 1) return `${kb.toFixed(0)} KB`;
   return `${bytes} B`;
 }
+
+/** Format bytes into human-readable size */
+export function formatSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / 1024 ** i).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+/** Format a relative time string from a timestamp or ISO date */
+export function relativeTime(date: string | number | Date): string {
+  const now = Date.now();
+  const then = typeof date === "number" ? date : new Date(date).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+/** Format running time from a start timestamp */
+export function getRunningTime(createdAt?: string | number | Date): string {
+  if (!createdAt) return "";
+  const start = typeof createdAt === "number" ? createdAt : new Date(createdAt).getTime();
+  const diff = Date.now() - start;
+  const totalMinutes = Math.floor(diff / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+/** Format price with symbol suffix */
+export function formatPrice(value: number, symbol?: string): string {
+  const formatted = value.toFixed(symbol === "BTCUSD" || symbol === "ETHUSD" ? 2 : 5);
+  return symbol ? `${formatted} ${symbol}` : formatted;
+}
+
+/** Format profit/loss with sign */
+export function formatProfit(value: number): string {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}`;
+}
+
+/** Convert a 0-100 percent to severity level */
+export function severityFromPercent(pct: number): "ok" | "warn" | "crit" {
+  if (pct >= 90) return "crit";
+  if (pct >= 70) return "warn";
+  return "ok";
+}

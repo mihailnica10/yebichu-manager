@@ -3,7 +3,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY packages/api/package.json packages/api/
 COPY packages/db/package.json packages/db/
-COPY packages/mt5-client/package.json packages/mt5-client/
 COPY packages/socket-server/package.json packages/socket-server/
 COPY apps/web/package.json apps/web/
 RUN bun install --frozen-lockfile --production
@@ -13,7 +12,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY packages/api ./packages/api
 COPY packages/db ./packages/db
-COPY packages/mt5-client ./packages/mt5-client
 COPY packages/socket-server ./packages/socket-server
 COPY apps/web ./apps/web
 COPY package.json tsconfig.json turbo.json ./

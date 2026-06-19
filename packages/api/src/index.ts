@@ -3,6 +3,7 @@ import { syncSchema } from "@mt5/db";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { healthRoutes } from "./health";
+import { startMarketStream } from "./market-stream";
 import { startMetricsCollection } from "./metrics";
 import { auditLogRoutes } from "./routes/audit";
 import { authRoutes } from "./routes/auth";
@@ -48,6 +49,7 @@ export function createApp() {
   marketRoutes(app);
 
   startMetricsCollection();
+  startMarketStream();
 
   app.doc("/doc", {
     openapi: "3.0.0",

@@ -2,12 +2,15 @@ import { createApp } from "@mt5/api";
 
 const app = createApp();
 
-const _handlers = ["GET", "POST", "PUT", "DELETE"] as const;
-
 async function handler(req: Request) {
   const url = new URL(req.url);
   url.pathname = url.pathname.replace(/^\/api/, "");
-  const newReq = new Request(url.toString(), req);
+  const newReq = new Request(url.toString(), {
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    duplex: "half",
+  });
   return app.fetch(newReq);
 }
 

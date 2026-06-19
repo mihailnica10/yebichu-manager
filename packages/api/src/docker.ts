@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
+import { RUNTIME_DIR } from "./shared/paths";
 
 const IMAGE_TAG = "mt5-tigervnc:latest";
-const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
 
 export function checkDockerAvailable(): boolean {
   try {
@@ -54,4 +54,24 @@ export function ensureImage(): string | null {
   const result = buildImage();
   if (result.success) return null;
   return result.output;
+}
+
+export function listRunningContainers(): Record<string, { status: string; containerRunning: boolean }> {
+  try {
+    const out = execSync("docker ps -a --format '{{.Names}}\t{{.Status}}'", {
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024,
+    });
+    const result: Record<string, { status: string; containerRunning: boolean }> = {};
+    for (const line of out.trim().split("\n").filter(Boolean)) {
+      const [name, status] = line.split("\t");
+      result[name] = {
+        status: status?.startsWith("Up") ? "running" : "stopped",
+        containerRunning: status?.startsWith("Up") ?? false,
+      };
+    }
+    return result;
+  } catch {
+    return {};
+  }
 }

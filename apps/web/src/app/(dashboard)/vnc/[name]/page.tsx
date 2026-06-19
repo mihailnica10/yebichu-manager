@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 export default function VncPage() {
   const { name } = useParams<{ name: string }>();
   const router = useRouter();
-  const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const vncHost = process.env.NEXT_PUBLIC_VNC_HOST || (typeof window !== "undefined" ? window.location.hostname : "localhost");
 
   const {
     data: instance,
@@ -37,8 +37,12 @@ export default function VncPage() {
 
   if (isLoading)
     return (
-      <div className="flex justify-center p-8">
-        <Spinner />
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+          <div className="h-7 w-48 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="h-[50vh] md:h-[70vh] bg-muted rounded-xl animate-pulse" />
       </div>
     );
 
@@ -54,7 +58,7 @@ export default function VncPage() {
     );
 
   const wsProto = window.location.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${wsProto}://${host}:${instance.wsPort}/websockify`;
+  const wsUrl = `${wsProto}://${vncHost}:${instance.wsPort}/websockify`;
 
   return (
     <div className="flex flex-col h-svh">
@@ -72,7 +76,7 @@ export default function VncPage() {
         </div>
       </div>
       <div className="flex-1 min-h-0">
-        <VncViewer wsUrl={wsUrl} />
+        <VncViewer wsUrl={wsUrl} vncPassword={instance.vncPassword} />
       </div>
     </div>
   );

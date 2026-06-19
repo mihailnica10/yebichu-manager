@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -18,13 +17,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSocket } from "@/hooks/useSocket";
+import {
+  useMarketAccount,
+  useMarketOHLC,
+  useMarketOrders,
+  useMarketPositions,
+  useSocket,
+} from "@/hooks/useSocket";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+import { formatPrice, formatProfit } from "@/lib/format";
 import { useState } from "react";
 
-const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "ETHUSD"] as const;
+// TODO: move to shared config
+const DEFAULT_SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "BTCUSD", "ETHUSD"];
 const TIMEFRAMES = ["M1", "M5", "M15", "H1", "H4", "D1"] as const;
 
 interface Candle {
@@ -73,81 +80,22 @@ interface Account {
   name: string;
 }
 
-function formatPrice(value: number, symbol: string): string {
-  const digits = symbol === "BTCUSD" || symbol === "ETHUSD" ? 2 : 5;
-  return value.toFixed(digits);
-}
-
-function formatProfit(value: number): string {
-  const prefix = value >= 0 ? "+" : "";
-  return `${prefix}$${value.toFixed(2)}`;
-}
-
-function isBridge503(error: unknown): boolean {
-  if (error && typeof error === "object" && "response" in error) {
-    const resp = (error as { response: { status: number } }).response;
-    return resp?.status === 503;
-  }
-  return false;
-}
-
 export function MarketPanel({ name }: { name: string }) {
   const { isConnected } = useSocket();
   const [symbol, setSymbol] = useState<string>("EURUSD");
+
+  const { data: symbols } = useQuery({
+    queryKey: ["market", "symbols", name],
+    queryFn: () => api.get(`/bridge/${name}/symbols`).then(r => r.data || DEFAULT_SYMBOLS),
+    refetchInterval: 300_000,
+    enabled: !!name,
+  });
   const [timeframe, setTimeframe] = useState<string>("M1");
 
-  const {
-    data: ohlc,
-    isLoading: ohlcLoading,
-    isError: ohlcError,
-    error: ohlcErr,
-  } = useQuery({
-    queryKey: ["market", "ohlc", name, symbol, timeframe],
-    queryFn: async () => {
-      const res = await api.get<{ symbol: string; timeframe: string; candles: Candle[] }>(
-        `/instances/${name}/market/ohlc?symbol=${symbol}&timeframe=${timeframe}&count=100`,
-      );
-      return res.data;
-    },
-    refetchInterval: 10000,
-    enabled: !!name,
-  });
-
-  const {
-    data: trades,
-    isLoading: tradesLoading,
-    isError: tradesError,
-    error: tradesErr,
-  } = useQuery({
-    queryKey: ["market", "trades", name],
-    queryFn: async () => {
-      const res = await api.get<{ positions: Position[]; orders: Order[] }>(
-        `/instances/${name}/market/trades`,
-      );
-      return res.data;
-    },
-    refetchInterval: 5000,
-    enabled: !!name,
-  });
-
-  const {
-    data: account,
-    isLoading: accountLoading,
-    isError: accountError,
-    error: accountErr,
-  } = useQuery({
-    queryKey: ["market", "account", name],
-    queryFn: async () => {
-      const res = await api.get<Account>(`/instances/${name}/market/account`);
-      return res.data;
-    },
-    refetchInterval: 5000,
-    enabled: !!name,
-  });
-
-  const candles = ohlc?.candles ?? [];
-  const positions = trades?.positions ?? [];
-  const orders = trades?.orders ?? [];
+  const { data: candles = [] } = useMarketOHLC(name, symbol, timeframe);
+  const { positions = [] } = useMarketPositions(name);
+  const { orders = [] } = useMarketOrders(name);
+  const { account } = useMarketAccount(name);
 
   const markers = positions.map((p) => ({
     time: p.openTime,
@@ -165,7 +113,7 @@ export function MarketPanel({ name }: { name: string }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SYMBOLS.map((s) => (
+            {(symbols || DEFAULT_SYMBOLS).map((s: string) => (
               <SelectItem key={s} value={s}>
                 {s}
               </SelectItem>
@@ -200,15 +148,7 @@ export function MarketPanel({ name }: { name: string }) {
 
       <Card>
         <CardContent className="pt-4">
-          {ohlcLoading && !ohlc ? (
-            <div className="flex items-center justify-center h-[500px]">
-              <Spinner />
-            </div>
-          ) : ohlcError ? (
-            <div className="flex items-center justify-center h-[500px] text-destructive">
-              {isBridge503(ohlcErr) ? "Bridge not available" : "Failed to load chart data"}
-            </div>
-          ) : candles.length === 0 ? (
+          {candles.length === 0 ? (
             <div className="flex items-center justify-center h-[500px] text-muted-foreground">
               No data available
             </div>
@@ -224,15 +164,7 @@ export function MarketPanel({ name }: { name: string }) {
             <CardTitle>Account</CardTitle>
           </CardHeader>
           <CardContent>
-            {accountLoading && !account ? (
-              <Spinner />
-            ) : accountError ? (
-              <div className="text-sm text-destructive">
-                {isBridge503(accountErr)
-                  ? "Bridge not available"
-                  : "Failed to load account data"}
-              </div>
-            ) : account ? (
+            {account ? (
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div className="text-muted-foreground">Balance</div>
                 <div className="text-right font-medium">${account.balance.toFixed(2)}</div>
@@ -246,7 +178,7 @@ export function MarketPanel({ name }: { name: string }) {
                 <div
                   className={cn(
                     "text-right font-medium",
-                    account.profit >= 0 ? "text-green-500" : "text-red-500",
+                    account.profit >= 0 ? "text-profit" : "text-loss",
                   )}
                 >
                   {formatProfit(account.profit)}
@@ -265,15 +197,7 @@ export function MarketPanel({ name }: { name: string }) {
             <CardTitle>Open Positions ({positions.length})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {tradesLoading && !trades ? (
-              <div className="flex justify-center p-4">
-                <Spinner />
-              </div>
-            ) : tradesError ? (
-              <div className="p-4 text-sm text-destructive text-center">
-                {isBridge503(tradesErr) ? "Bridge not available" : "Failed to load positions"}
-              </div>
-            ) : positions.length === 0 ? (
+            {positions.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground text-center">No open positions</div>
             ) : (
               <Table>
@@ -297,8 +221,8 @@ export function MarketPanel({ name }: { name: string }) {
                           className={cn(
                             "uppercase text-[10px]",
                             p.type === "buy"
-                              ? "bg-green-500/20 text-green-500"
-                              : "bg-red-500/20 text-red-500",
+                              ? "bg-profit/20 text-profit"
+                              : "bg-loss/20 text-loss",
                           )}
                         >
                           {p.type}
@@ -314,7 +238,7 @@ export function MarketPanel({ name }: { name: string }) {
                       <TableCell
                         className={cn(
                           "font-mono font-medium",
-                          p.profit >= 0 ? "text-green-500" : "text-red-500",
+                          p.profit >= 0 ? "text-profit" : "text-loss",
                         )}
                       >
                         {formatProfit(p.profit)}

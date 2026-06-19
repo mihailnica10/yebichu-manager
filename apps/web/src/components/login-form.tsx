@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Field, FieldContent, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupButton } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
 import { useSignIn } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card
         size="sm"
-        className="animate-[fadeSlideUp_0.5s_ease-out] border-0 shadow-none md:border md:shadow-sm md:shadow-black/5"
+        className="animate-fade-slide-up border-0 shadow-none md:border md:shadow-sm md:shadow-black/5"
       >
         <CardHeader className="text-center pt-6 md:pt-4">
           <div className="flex flex-col items-center gap-2">
@@ -57,7 +58,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
               alt="YEBICHU"
               width={48}
               height={44}
-              className="size-12"
+              style={{ width: 48, height: 44 }}
               priority
             />
             <h1 className="font-display text-3xl font-black label-text tracking-tight">
@@ -94,7 +95,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
               <Field>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
                 <FieldContent>
-                  <div className="relative">
+                  <InputGroup>
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -103,24 +104,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
                         setPassword(e.target.value);
                         if (errors.password) setErrors((p) => ({ ...p, password: undefined }));
                       }}
-                      className="h-11 pr-10 text-base md:h-10"
+                      className="h-11 text-base md:h-10"
                       aria-invalid={!!errors.password || undefined}
                       autoComplete="current-password"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((p) => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                      tabIndex={-1}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
+                    <InputGroupButton onClick={() => setShowPassword((p) => !p)}>
                       {showPassword ? (
                         <EyeOffIcon className="size-4" />
                       ) : (
                         <EyeIcon className="size-4" />
                       )}
-                    </button>
-                  </div>
+                    </InputGroupButton>
+                  </InputGroup>
                   {errors.password && <FieldError>{errors.password}</FieldError>}
                 </FieldContent>
               </Field>
@@ -147,12 +142,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
           </form>
         </CardContent>
       </Card>
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+
     </div>
   );
 }

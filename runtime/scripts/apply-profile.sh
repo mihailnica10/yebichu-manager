@@ -11,8 +11,8 @@ if [ -z "$NAME" ]; then
     exit 1
 fi
 
-PROFILES_DIR="/root/mt5/profiles"
-SHARED_DIR="/root/mt5/shared"
+PROFILES_DIR="/home/misu/mt5/profiles"
+SHARED_DIR="/home/misu/mt5/shared"
 PROFILE_DIR="$PROFILES_DIR/$NAME"
 shift
 
@@ -39,7 +39,7 @@ fi
 
 # Apply to specific instances
 for inst_name in "$@"; do
-    INST_DATA="/root/mt5/instances/$inst_name/data"
+    INST_DATA="/home/misu/mt5/instances/$inst_name/data"
     if [ ! -d "$INST_DATA" ]; then
         echo "  [SKIP] Instance '$inst_name' not found"
         continue

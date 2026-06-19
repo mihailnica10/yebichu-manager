@@ -1,25 +1,50 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
+import { Database } from "bun:sqlite";
 import { Server as SocketServer } from "socket.io";
 
 const PORT = Number.parseInt(process.env.SOCKET_PORT || "3557", 10);
+const DB_PATH = process.env.DB_PATH || process.env.TURSO_DB_URL || "/home/misu/mt5/mt5.db";
+
+const db = new Database(DB_PATH);
 
 const httpServer = createServer();
 const io = new SocketServer(httpServer, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: true, credentials: true, methods: ["GET", "POST"] },
 });
 
-io.use((socket, next) => {
-  const auth = socket.handshake.auth;
-  if (auth?.source === "api") {
+io.use(async (socket, next) => {
+  if (socket.handshake.auth?.source === "api") {
     const secret = process.env.SOCKET_SECRET || "dev-secret";
-    if (auth.secret === secret) {
+    if (socket.handshake.auth?.secret === secret) {
       socket.data.isApiClient = true;
       return next();
     }
-    return next(new Error("Invalid API secret"));
+    return next(new Error("API auth failed"));
   }
-  next();
+
+  // Browser connections must have a valid session
+  const sessionId = socket.handshake.auth?.session || (() => {
+    const cookie = socket.handshake.headers?.cookie;
+    if (!cookie) return null;
+    const m = cookie.match(/mt5\.session=([^;]+)/);
+    return m?.[1];
+  })();
+
+  if (!sessionId) return next(new Error("No session"));
+
+  try {
+    const row = db.query("SELECT id, user_id as userId, expires_at as expiresAt FROM sessions WHERE id = ?").get(sessionId) as { id: string; userId: number; expiresAt: number } | undefined;
+    if (!row) return next(new Error("Invalid session"));
+    if (row.expiresAt < Date.now()) {
+      db.run("DELETE FROM sessions WHERE id = ?", [sessionId]);
+      return next(new Error("Session expired"));
+    }
+    socket.data.userId = row.userId;
+    next();
+  } catch {
+    next(new Error("Auth error"));
+  }
 });
 
 let clients = 0;
@@ -78,6 +103,7 @@ io.on("connection", (socket) => {
   });
 
   socket.onAny((event, ...args) => {
+    if (socket.handshake.auth?.source !== "api") return;
     if (event.startsWith("api:")) {
       const relayEvent = event.slice(4);
       io.emit(relayEvent, ...args);
@@ -123,7 +149,7 @@ function spawnDockerEvents() {
 
 spawnDockerEvents();
 
-const HOST = process.env.SOCKET_HOST || "127.0.0.1";
+const HOST = process.env.SOCKET_HOST || "0.0.0.0";
 httpServer.listen(PORT, HOST, () => {
   console.log(`[socket] Server running on ${HOST}:${PORT}`);
 });

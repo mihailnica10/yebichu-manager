@@ -135,7 +135,7 @@ export function InstanceResources({ name }: { name: string }) {
     }
   }, [metrics, range]);
 
-  const liveMetrics = useInstanceMetrics(name);
+  const { metrics: liveMetrics } = useInstanceMetrics(name);
 
   React.useEffect(() => {
     if (!liveMetrics) return;

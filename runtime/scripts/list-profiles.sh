@@ -3,7 +3,7 @@
 # Lists all captured profiles with metadata
 set -e
 
-PROFILES_DIR="/root/mt5/profiles"
+PROFILES_DIR="/home/misu/mt5/profiles"
 
 if [ ! -d "$PROFILES_DIR" ] || [ -z "$(ls -A "$PROFILES_DIR" 2>/dev/null)" ]; then
     echo "No profiles found in $PROFILES_DIR"

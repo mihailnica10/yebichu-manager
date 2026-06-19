@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq, getDb, schema, hashPassword, verifyPassword } from "@mt5/db";
-import { getActorId, logAudit } from "../audit";
+import { logAudit } from "../audit";
 
 const SignInBody = z.object({
   email: z.string().email().openapi({ example: "admin@mt5.local" }),
@@ -117,7 +117,7 @@ export function authRoutes(app: OpenAPIHono) {
     await logAudit("sign_in", user.id, "user", String(user.id), { email: user.email });
 
 return c.json({ user: { id: user.id, email: user.email, name: user.name } }, 200, {
-      "Set-Cookie": `mt5.session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
+      "Set-Cookie": `mt5.session=${token}; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
     });
   });
 
@@ -150,19 +150,24 @@ return c.json({ user: { id: user.id, email: user.email, name: user.name } }, 200
     await logAudit("sign_up", inserted.id, "user", String(inserted.id), { email: inserted.email });
 
     return c.json({ user: { id: inserted.id, email: inserted.email, name: inserted.name } }, 201, {
-      "Set-Cookie": `mt5.session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
+      "Set-Cookie": `mt5.session=${token}; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
     });
   });
 
   app.openapi(signOutRoute, async (c) => {
     const token = c.req.header("cookie")?.match(/mt5\.session=([^;]+)/)?.[1];
+    let actorId: number | undefined;
     if (token) {
-      await getDb().delete(schema.sessions).where(eq(schema.sessions.id, token)).run();
+      const db = getDb();
+      const session = await db.select().from(schema.sessions).where(eq(schema.sessions.id, token)).get();
+      if (session) {
+        actorId = session.userId;
+        await db.delete(schema.sessions).where(eq(schema.sessions.id, token)).run();
+      }
     }
-    const actorId = await getActorId(c);
     await logAudit("sign_out", actorId, "user", actorId ? String(actorId) : undefined);
     return c.json({ status: "ok" }, 200, {
-      "Set-Cookie": `mt5.session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+      "Set-Cookie": `mt5.session=; SameSite=Lax; Path=/; Max-Age=0`,
     });
   });
 
@@ -181,11 +186,16 @@ return c.json({ user: { id: user.id, email: user.email, name: user.name } }, 200
       return c.json({ user: null });
     }
 
-    const user = await db
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.id, session.userId))
-      .get();
+    let user;
+    try {
+      user = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, session.userId))
+        .get();
+    } catch {
+      return c.json({ user: null });
+    }
     if (!user) return c.json({ user: null });
 
     return c.json({ user: { id: user.id, email: user.email, name: user.name } });

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -13,114 +14,102 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("mt5-bridge")
 
-# Lazy MT5 backend — try mt5linux first (Linux bridge to MT5 under Wine),
-# then fall back to official MetaTrader5 (Windows-only).
-# We don't instantiate immediately; _get_mt5() handles it lazily.
-_mt5_backend = None  # "mt5linux" or "official" or None
-_mt5_instance = None  # cached MT5 instance (lazy)
-
+# Lazy MT5 backend — try rpyc first (Wine Python bridge),
+# then mt5linux (Linux bridge to MT5), then official MetaTrader5 (Windows-only).
+# _get_mt5() handles creation lazily with retry logic.
 _mt5_backend = None
 _mt5_instance = None
 
 
 def _get_mt5():
-    """Get or create the MT5 backend instance lazily. Retries on each call until success."""
+    """Get or create the MT5 backend instance lazily. Retries all backends on each call."""
     global _mt5_backend, _mt5_instance
+
     if _mt5_instance is not None and not isinstance(_mt5_instance, SimpleNamespace):
         return _mt5_instance
 
     _mt5_instance = None
 
-    # rpyc bridge (connects to rpyc classic server running under Wine Python)
-    if _mt5_backend is None or _mt5_backend in ("rpyc", "retry"):
+    # Determine which backends to try based on current state
+    backends_to_try = []
+    if _mt5_backend is None or _mt5_backend == "retry":
+        backends_to_try = ["rpyc", "mt5linux", "official"]
+    elif _mt5_backend == "rpyc":
+        backends_to_try = ["rpyc", "mt5linux", "official"]
+    elif _mt5_backend == "mt5linux":
+        backends_to_try = ["mt5linux", "official"]
+    elif _mt5_backend == "official":
+        backends_to_try = ["official"]
+
+    for backend in backends_to_try:
         try:
-            from rpyc.utils.classic import connect
-            conn = connect("localhost", 18812, config={"sync_request_timeout": 30})
-            _mt5_instance = conn.modules.MetaTrader5
-            _mt5_backend = "rpyc"
-            logger.info("Using rpyc backend (connected to Wine Python)")
-            return _mt5_instance
-        except Exception as e:
-            logger.warning("rpyc backend failed: %s", e)
-            if _mt5_backend is None:
+            if backend == "rpyc":
+                import rpyc
+                from rpyc.utils.classic import ClassicService
+                conn = rpyc.connect(
+                    "localhost", 18812,
+                    service=ClassicService,
+                    config={
+                        "sync_request_timeout": 5,
+                        "allow_pickle": True,
+                        "allow_public_attrs": True,
+                        "allow_all_attrs": True,
+                    },
+                )
+                _mt5_instance = conn.modules.MetaTrader5
+                _mt5_backend = "rpyc"
+                logger.info("Using rpyc backend (connected to Wine Python)")
+                return _mt5_instance
+            elif backend == "mt5linux":
+                from mt5linux import MetaTrader5
+                inst = MetaTrader5()
+                _mt5_instance = inst
                 _mt5_backend = "mt5linux"
-
-    # mt5linux next (Linux bridge to MT5 under Wine inside container)
-    if _mt5_backend is None or _mt5_backend in ("mt5linux", "retry"):
-        try:
-            from mt5linux import MetaTrader5
-            inst = MetaTrader5()
-            _mt5_instance = inst
-            _mt5_backend = "mt5linux"
-            logger.info("Using mt5linux backend")
-            return inst
+                logger.info("Using mt5linux backend")
+                return inst
+            elif backend == "official":
+                import MetaTrader5 as _mt5
+                _mt5_instance = _mt5
+                _mt5_backend = "official"
+                logger.info("Using official MetaTrader5 backend")
+                return _mt5
         except ImportError:
-            _mt5_backend = "official"
-        except Exception:
-            return SimpleNamespace()
+            logger.debug("%s backend not available", backend)
+            continue
+        except Exception as e:
+            if _mt5_backend == "retry":
+                logger.debug("%s backend failed: %s", backend, e)
+            else:
+                logger.warning("%s backend failed: %s", backend, e)
+            continue
 
-    # Official MetaTrader5 (Windows-only)
-    if _mt5_backend is None or _mt5_backend in ("official", "retry"):
-        try:
-            import MetaTrader5 as _mt5
-            _mt5_instance = _mt5
-            _mt5_backend = "official"
-            logger.info("Using official MetaTrader5 backend")
-            return _mt5
-        except ImportError:
-            _mt5_backend = "mt5linux" if _mt5_backend == "retry" else "retry"
-
+    _mt5_backend = "retry"
     return SimpleNamespace()
 
-
-def _check_mt5():
-    """Check if MT5 terminal is available."""
-    mt5_obj = _get_mt5()
-    if mt5_obj is None or isinstance(mt5_obj, SimpleNamespace):
-        return False
-    try:
-        info = mt5_obj.terminal_info()
-        return info is not None
-    except Exception:
-        return False
-
-
-# Module-level __getattr__ so that 'mt5' always resolves via _get_mt5()
-def __getattr__(name):
-    if name == "mt5":
-        return _get_mt5()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _initialized, _rpyc_proc
-    # Start rpyc server under Wine Python
-    _rpyc_proc = None
-    try:
-        import subprocess
-        _rpyc_proc = subprocess.Popen(
-            ["wine", "python", "-m", "rpyc.cli.rpyc_classic", "--host", "0.0.0.0", "--port", "18812"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-        logger.info("rpyc server starting on port 18812")
-    except Exception as e:
-        logger.warning("rpyc server start failed: %s", e)
+    global _initialized, _reconnect_task
+    # rpyc server is started by entrypoint.sh — no need to launch it here
 
-    import time
-    time.sleep(2)
-    _initialized = _try_initialize()
-    if _initialized:
-        logger.info("MT5 connected successfully")
-    else:
-        logger.error("All MT5 initialization attempts failed")
+    # Start periodic reconnection background task immediately
+    _reconnect_task = asyncio.create_task(_periodic_reconnect())
+    logger.info("Periodic reconnection task started (every 10s)")
+
     yield
+
+    _reconnect_task.cancel()
+    try:
+        await _reconnect_task
+    except asyncio.CancelledError:
+        pass
     if _initialized:
-        _get_mt5().shutdown()
-        logger.info("MT5 shutdown")
-    if _rpyc_proc:
-        _rpyc_proc.terminate()
-        logger.info("rpyc server stopped")
+        try:
+            _get_mt5().shutdown()
+            logger.info("MT5 shutdown")
+        except Exception:
+            pass
 
 
 app = FastAPI(
@@ -147,18 +136,7 @@ TIMEFRAME_MAP = {
     "D1": 1440,
 }
 _initialized = False
-
-def _get_tf(name):
-    """Resolve timeframe constant from mt5 backend."""
-    tf_map = {
-        "M1": _get_mt5().TIMEFRAME_M1 if hasattr(_get_mt5(), "TIMEFRAME_M1") else 1,
-        "M5": _get_mt5().TIMEFRAME_M5 if hasattr(_get_mt5(), "TIMEFRAME_M5") else 5,
-        "M15": _get_mt5().TIMEFRAME_M15 if hasattr(_get_mt5(), "TIMEFRAME_M15") else 15,
-        "H1": _get_mt5().TIMEFRAME_H1 if hasattr(_get_mt5(), "TIMEFRAME_H1") else 60,
-        "H4": _get_mt5().TIMEFRAME_H4 if hasattr(_get_mt5(), "TIMEFRAME_H4") else 240,
-        "D1": _get_mt5().TIMEFRAME_D1 if hasattr(_get_mt5(), "TIMEFRAME_D1") else 1440,
-    }
-    return tf_map.get(name.upper())
+_reconnect_task = None
 
 
 # ---------------------------------------------------------------------------
@@ -166,16 +144,45 @@ def _get_tf(name):
 # ---------------------------------------------------------------------------
 
 
+def _reset_backend():
+    """Reset cached backend connection, forcing reconnection on next call."""
+    global _mt5_backend, _mt5_instance, _initialized
+    _mt5_backend = "retry"
+    _mt5_instance = None
+    _initialized = False
+
+
 def _try_initialize():
-    """Try to initialize MT5 terminal connection."""
+    """Try to initialize MT5 terminal connection. Safe to call multiple times."""
+    global _initialized
+    _reset_backend()
     mt5_obj = _get_mt5()
     if mt5_obj is None or isinstance(mt5_obj, SimpleNamespace):
         return False
     try:
         result = mt5_obj.initialize()
+        if result:
+            _initialized = True
         return bool(result)
     except Exception:
         return False
+
+
+async def _periodic_reconnect():
+    """Background task that periodically checks and reconnects MT5."""
+    while True:
+        await asyncio.sleep(10)
+        try:
+            if not _check_mt5():
+                if _initialized or _mt5_backend != "retry":
+                    logger.info("Periodic reconnect: attempting re-initialization...")
+                success = _try_initialize()
+                if success:
+                    logger.info("Periodic reconnect: MT5 re-initialized successfully")
+                else:
+                    logger.debug("Periodic reconnect: MT5 still unavailable")
+        except Exception as e:
+            logger.debug("Periodic reconnect error: %s", e)
 
 
 
@@ -187,12 +194,17 @@ def _try_initialize():
 
 
 def _check_mt5():
+    """Check MT5 connection and attempt re-initialization if needed."""
     if not _initialized:
-        return False
+        return _try_initialize()
     try:
         info = _get_mt5().terminal_info()
-        return info is not None
+        if info is None:
+            _reset_backend()
+            return False
+        return True
     except Exception:
+        _reset_backend()
         return False
 
 
@@ -200,7 +212,7 @@ def _mt5_unavailable():
     return JSONResponse(status_code=503, content={"error": "MT5 not available"})
 
 
-def _to_dict(obj, exclude=()):
+def _to_dict(obj):
     if obj is None:
         return None
     if isinstance(obj, (list, tuple)):
@@ -211,7 +223,7 @@ def _to_dict(obj, exclude=()):
         d = obj.__dict__
     else:
         return obj
-    return {k: _to_dict(v) for k, v in d.items() if k not in exclude and not k.startswith('_')}
+    return {k: _to_dict(v) for k, v in d.items() if not k.startswith('_')}
 
 
 # ---------------------------------------------------------------------------
@@ -339,8 +351,6 @@ class HealthResponse(BaseModel):
     terminal: str = Field(description="Terminal running status")
     account: int | None = Field(description="Account login number or null")
 
-
-# --- New models ---
 
 class VersionResponse(BaseModel):
     major: int = Field(description="Major version")
@@ -1347,6 +1357,57 @@ async def get_symbols():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@app.get("/")
+async def get_root():
+    return {
+        "service": "MT5 Bridge API",
+        "version": "1.0.0",
+        "endpoints": {
+            "GET /": "This help message",
+            "GET /health": "Health check (status, mt5, terminal, account)",
+            "GET /version": "MT5 version info",
+            "GET /last-error": "Last MT5 error code and description",
+            "GET /terminal-info": "Terminal information",
+            "GET /account": "Account info (login, balance, equity, margin, etc.)",
+            "GET /symbols": "All available symbols with bid/ask",
+            "GET /symbols-total": "Total symbol count",
+            "GET /symbol-info": "Symbol info (query: symbol)",
+            "POST /symbol-select": "Enable/disable a symbol",
+            "GET /ohlc": "OHLC candles (query: symbol, timeframe, count)",
+            "GET /copy-rates-from": "Historical rates from date",
+            "GET /copy-rates-range": "Historical rates in range",
+            "GET /copy-ticks-from": "Historical ticks from date",
+            "GET /copy-ticks-range": "Historical ticks in range",
+            "GET /trades": "Open positions and pending orders",
+            "GET /positions-total": "Total open positions count",
+            "GET /positions-get": "Open positions (filterable)",
+            "GET /orders-total": "Total pending orders count",
+            "GET /orders-get": "Pending orders (filterable)",
+            "GET /history": "Deals and order history",
+            "GET /history-deals-total": "Deal count in date range",
+            "GET /history-deals-get": "Deals in date range (filterable)",
+            "GET /history-orders-total": "Historical order count in date range",
+            "GET /history-orders-get": "Historical orders in date range (filterable)",
+            "POST /order-check": "Validate a trade request",
+            "POST /order-send": "Execute a trade request",
+            "POST /order-calc-margin": "Calculate margin for a trade",
+            "POST /order-calc-profit": "Calculate profit for a trade",
+            "POST /market-book-add": "Subscribe to market depth",
+            "GET /market-book-get": "Get market depth",
+            "POST /market-book-release": "Unsubscribe from market depth",
+            "POST /initialize": "Initialize MT5 connection",
+            "POST /login": "Login to a trading account",
+            "POST /shutdown": "Shutdown MT5 connection",
+            "POST /sync/pull": "Pull config sets from MinIO",
+            "POST /sync/bootstrap": "Bootstrap config from env",
+            "GET /sync/status": "Sync status",
+        },
+        "status": "degraded" if not _initialized else "ok",
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+    }
+
+
 @app.get("/health", response_model=HealthResponse)
 async def get_health():
     mt5_status = "disconnected"
@@ -1378,24 +1439,16 @@ async def get_health():
     )
 
 
-# ---------------------------------------------------------------------------
-# Entrypoint
-# ---------------------------------------------------------------------------
-
-
 @app.post("/sync/pull")
 async def sync_pull(body: dict = {}):
     """Pull config sets from MinIO and apply to MT5 directory."""
     import subprocess
     import os
-    import base64
     
     config_sets = body.get("configSets", [])
     results = []
     mt5_dir = os.environ.get("MT5_DIR", "/config/.wine/drive_c/Program Files/MetaTrader 5")
     endpoint = os.environ.get("MINIO_ENDPOINT", "minio:9000")
-    access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
-    secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
     bucket = os.environ.get("MINIO_BUCKET", "mt5-configs")
     
     for cs in config_sets:
@@ -1419,10 +1472,7 @@ async def sync_pull(body: dict = {}):
             
             # Download from MinIO using HTTP API (no extra deps)
             import urllib.request
-            import json
             
-            # Use MinIO REST API directly
-            minio_url = f"http://{endpoint}/{bucket}/config-sets/{set_id}/v{version}/"
             # For simplicity, list objects via API
             list_url = f"http://{endpoint}/{bucket}/?prefix=config-sets/{set_id}/v{version}/&list-type=2"
             

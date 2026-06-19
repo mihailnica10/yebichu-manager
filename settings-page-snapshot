@@ -1,0 +1,98 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e19]:
+      - list [ref=e21]:
+        - listitem [ref=e22]:
+          - link "YEBICHU YEBICHU MANAGER" [ref=e23] [cursor=pointer]:
+            - /url: /system
+            - img "YEBICHU" [ref=e24]
+            - generic [ref=e25]:
+              - generic [ref=e26]: YEBICHU
+              - generic [ref=e27]: MANAGER
+      - generic [ref=e28]:
+        - list [ref=e31]:
+          - listitem [ref=e32]:
+            - link "Dashboard" [ref=e33] [cursor=pointer]:
+              - /url: /system
+              - img [ref=e34]
+              - generic [ref=e36]: Dashboard
+          - listitem [ref=e37]:
+            - link "Instances" [ref=e38] [cursor=pointer]:
+              - /url: /instances
+              - img [ref=e39]
+              - generic [ref=e42]: Instances
+        - list [ref=e45]:
+          - listitem [ref=e46]:
+            - link "Audit Log" [ref=e47] [cursor=pointer]:
+              - /url: /audit
+              - img [ref=e48]
+              - generic [ref=e51]: Audit Log
+          - listitem [ref=e52]:
+            - link "Settings" [ref=e53] [cursor=pointer]:
+              - /url: /settings
+              - img [ref=e54]
+              - generic [ref=e57]: Settings
+          - listitem [ref=e58]:
+            - link "Get Help" [ref=e59] [cursor=pointer]:
+              - /url: https://github.com/anomalyco/mt5-manager/issues
+              - img [ref=e60]
+              - generic [ref=e63]: Get Help
+      - list [ref=e65]:
+        - listitem [ref=e66]:
+          - button "A Admin admin@yebichu.com" [ref=e67]:
+            - generic [ref=e69]: A
+            - generic [ref=e70]:
+              - generic [ref=e71]: Admin
+              - generic [ref=e72]: admin@yebichu.com
+            - img [ref=e73]
+    - main [ref=e77]:
+      - generic [ref=e79]:
+        - button "Toggle Sidebar" [ref=e80]:
+          - img
+          - generic [ref=e81]: Toggle Sidebar
+        - generic [ref=e82]: Settings
+        - generic [ref=e83]:
+          - 'generic "Socket: connected, MT5: offline" [ref=e84]'
+          - generic [ref=e85]: MT5 Offline
+      - generic [ref=e90]:
+        - generic [ref=e92]:
+          - heading "Settings" [level=1] [ref=e93]
+          - paragraph [ref=e94]: Manage config snapshots via the management instance
+        - generic [ref=e95]:
+          - tablist [ref=e96]:
+            - tab "VNC" [selected] [ref=e97]:
+              - img
+              - text: VNC
+            - tab "Snapshots" [ref=e98]:
+              - img
+              - text: Snapshots
+            - tab "Files" [ref=e99]:
+              - img
+              - text: Files
+            - tab "Logs" [ref=e100]:
+              - img
+              - text: Logs
+          - tabpanel "VNC" [ref=e101]:
+            - generic [ref=e102]:
+              - generic [ref=e104]:
+                - img [ref=e105]
+                - text: Management Instance
+              - generic [ref=e107]:
+                - generic [ref=e108]:
+                  - generic [ref=e109]: Connected
+                  - generic [ref=e111]: mt5-mgmt
+                - generic [ref=e113]:
+                  - generic [ref=e114]:
+                    - generic [ref=e117]: Connected
+                    - button "Ctrl+Alt+Del" [ref=e119]
+                  - generic [ref=e124]:
+                    - generic [ref=e125]: "Mouse: click to interact"
+                    - generic [ref=e126]: "|"
+                    - generic [ref=e127]: Scroll to zoom
+                - generic [ref=e128]:
+                  - generic [ref=e129]: Click to interact · Scroll to zoom
+                  - button "Open in new tab" [ref=e130]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e13] [cursor=pointer]:
+    - img [ref=e14]
+  - alert [ref=e131]

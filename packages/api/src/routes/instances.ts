@@ -6,8 +6,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { and, desc, eq, getDb, gte, schema, sql } from "@mt5/db";
 import { getActorId, logAudit } from "../audit";
-import { checkImageExists } from "../docker";
+import { buildImage, checkImageExists } from "../docker";
 import { emitSocketEvent } from "../socket";
+import { getChartsDir, getTemplatesDir, getSymbolsetsDir } from "../shared/constants";
+import { getContainerId, detectPorts } from "../shared/instance";
+import { INSTANCES_DIR, SHARED_DIR, RUNTIME_DIR, BRIDGE_SRC, ensureInstanceDir, ensureSharedDir } from "../shared/paths";
 
 const InstanceSchema = z
   .object({
@@ -41,14 +44,7 @@ const CreateInstanceBody = z.object({
   isManagement: z.boolean().optional(),
 });
 
-const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
-const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
 const MAX_INSTANCES = Number.parseInt(process.env.MAX_INSTANCES || "10");
-const PROFILES_CHARTS_DIR = process.env.PROFILES_CHARTS_DIR || "/var/lib/mt5/profiles/Charts";
-const PROFILES_TEMPLATES_DIR =
-  process.env.PROFILES_TEMPLATES_DIR || "/var/lib/mt5/profiles/Templates";
-const PROFILES_SYMBOLSETS_DIR =
-  process.env.PROFILES_SYMBOLSETS_DIR || "/var/lib/mt5/profiles/SymbolSets";
 const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || "minio:9000";
 const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || "minioadmin";
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || "minioadmin";
@@ -348,8 +344,6 @@ function generateComposeContent(
   managementMode?: boolean,
 ): string {
   const instDir = `${INSTANCES_DIR}/${name}`;
-  const BRIDGE_SRC = process.env.BRIDGE_SRC || "/opt/mt5-manager/scripts/mt5-bridge";
-  const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
   const lines: string[] = [];
   lines.push(`services:
   ${name}:
@@ -359,9 +353,9 @@ function generateComposeContent(
     networks:
       - mt5-net
     ports:
-      - 127.0.0.1::5901
-      - 127.0.0.1::6080
-      - 127.0.0.1::8090
+      - 0.0.0.0::5901
+      - 0.0.0.0::6080
+      - 0.0.0.0::8090
     volumes:
       - ${SHARED_DIR}:/mt5-shared
       - ${instDir}/data:/mt5-instance
@@ -404,66 +398,7 @@ networks:
   return lines.join("\n");
 }
 
-function getContainerId(name: string): string {
-  try {
-    return execSync(`docker inspect --format '{{.Id}}' ${name}`, { encoding: "utf-8" }).trim();
-  } catch {
-    return name;
-  }
-}
 
-async function detectPorts(name: string) {
-  try {
-    const db = getDb();
-    const inst = await db
-      .select()
-      .from(schema.instances)
-      .where(eq(schema.instances.name, name))
-      .get();
-    if (!inst) return;
-
-    let config: Record<string, any> = {};
-    try {
-      config = JSON.parse(inst.configJson || "{}");
-    } catch {}
-
-    try {
-      const vncPortInfo = execSync(`docker port ${name} 5901/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const vncPort = Number.parseInt(vncPortInfo.trim());
-      if (!Number.isNaN(vncPort)) config.vncPort = vncPort;
-    } catch {}
-
-    try {
-      const wsPortInfo = execSync(`docker port ${name} 6080/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const wsPort = Number.parseInt(wsPortInfo.trim());
-      if (!Number.isNaN(wsPort)) config.wsPort = wsPort;
-    } catch {}
-
-    try {
-      const bridgePortInfo = execSync(`docker port ${name} 8090/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const bridgePort = Number.parseInt(bridgePortInfo.trim());
-      if (!Number.isNaN(bridgePort)) config.bridgePort = bridgePort;
-    } catch {}
-
-    await db
-      .update(schema.instances)
-      .set({ configJson: JSON.stringify(config), updatedAt: new Date() })
-      .where(eq(schema.instances.name, name))
-      .run();
-  } catch {}
-}
-
-function ensureSharedDir() {
-  if (!existsSync(SHARED_DIR)) {
-    mkdirSync(SHARED_DIR, { recursive: true });
-  }
-}
 
 function listRunningContainers() {
   try {
@@ -563,8 +498,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     if (existsSync(instDir)) {
       rmSync(instDir, { recursive: true, force: true });
     }
-    mkdirSync(`${instDir}/data`, { recursive: true });
-    mkdirSync(`${instDir}/wine`, { recursive: true });
+    ensureInstanceDir(instDir);
 
     const password = bodyPassword || randomBytes(8).toString("hex");
 
@@ -710,9 +644,7 @@ export function instanceRoutes(app: OpenAPIHono) {
 
     const instDir = `${INSTANCES_DIR}/${name}`;
     const composePath = `${instDir}/docker-compose.yaml`;
-    mkdirSync(instDir, { recursive: true });
-    mkdirSync(`${instDir}/data`, { recursive: true });
-    mkdirSync(`${instDir}/wine`, { recursive: true });
+    ensureInstanceDir(instDir);
 
     let config: any = {};
     try {
@@ -761,9 +693,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     const instDir = `${INSTANCES_DIR}/${name}`;
     const composePath = `${instDir}/docker-compose.yaml`;
     if (!existsSync(composePath)) {
-      mkdirSync(instDir, { recursive: true });
-      mkdirSync(`${instDir}/data`, { recursive: true });
-      mkdirSync(`${instDir}/wine`, { recursive: true });
+      ensureInstanceDir(instDir);
       let existingConfig: Record<string, any> = {};
       try {
         existingConfig = JSON.parse(inst.configJson || "{}");
@@ -806,9 +736,7 @@ export function instanceRoutes(app: OpenAPIHono) {
 
     const instDir = `${INSTANCES_DIR}/${name}`;
     const composePath = `${instDir}/docker-compose.yaml`;
-    mkdirSync(instDir, { recursive: true });
-    mkdirSync(`${instDir}/data`, { recursive: true });
-    mkdirSync(`${instDir}/wine`, { recursive: true });
+    ensureInstanceDir(instDir);
 
     let config: any = {};
     try {
@@ -1003,7 +931,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     const details: Record<string, string> = {};
 
     if (body.chartSet) {
-      const src = join(PROFILES_CHARTS_DIR, body.chartSet);
+      const src = join(getChartsDir(), body.chartSet);
       const dst = join(mt5Shared, "Profiles", body.chartSet);
       if (!existsSync(src)) return c.json({ error: `chart set "${body.chartSet}" not found` }, 404);
       if (existsSync(dst)) rmSync(dst, { recursive: true, force: true });
@@ -1013,7 +941,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     }
 
     if (body.template) {
-      const src = join(PROFILES_TEMPLATES_DIR, body.template);
+      const src = join(getTemplatesDir(), body.template);
       const dst = join(mt5Shared, "Templates", body.template);
       if (!existsSync(src)) return c.json({ error: `template "${body.template}" not found` }, 404);
       mkdirSync(join(mt5Shared, "Templates"), { recursive: true });
@@ -1022,7 +950,7 @@ export function instanceRoutes(app: OpenAPIHono) {
     }
 
     if (body.symbolSet) {
-      const src = join(PROFILES_SYMBOLSETS_DIR, body.symbolSet);
+      const src = join(getSymbolsetsDir(), body.symbolSet);
       const dst = join(mt5Shared, "SymbolSets", body.symbolSet);
       if (!existsSync(src))
         return c.json({ error: `symbol set "${body.symbolSet}" not found` }, 404);
@@ -1049,8 +977,6 @@ export function instanceRoutes(app: OpenAPIHono) {
       .get();
     if (!inst) return c.json({ error: "not found" }, 404);
 
-    const _RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
-    const { buildImage } = await import("../docker");
     const buildResult = buildImage();
     if (!buildResult.success) {
       return c.json({ error: `Rebuild failed: ${buildResult.output}` }, 500);
@@ -1245,5 +1171,27 @@ export function instanceRoutes(app: OpenAPIHono) {
           m.recordedAt instanceof Date ? m.recordedAt.getTime() : m.recordedAt,
       })),
     );
+  });
+
+  // Proxy bridge health endpoint (forward to container's bridge API)
+  app.get("/bridge/:name/health", async (c) => {
+    const { name } = c.req.param();
+    const db = getDb();
+    const inst = await db.select().from(schema.instances).where(eq(schema.instances.name, name)).get();
+    if (!inst) return c.json({ error: "not found" }, 404);
+
+    let config: any = {};
+    try { config = JSON.parse(inst.configJson || "{}"); } catch {}
+    const bridgePort = config.bridgePort;
+
+    if (!bridgePort) return c.json({ status: "degraded", mt5: "disconnected", terminal: "not running" });
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${bridgePort}/health`, { signal: AbortSignal.timeout(5000) });
+      const data = await res.json();
+      return c.json(data);
+    } catch {
+      return c.json({ status: "degraded", mt5: "disconnected", terminal: "not running" });
+    }
   });
 }

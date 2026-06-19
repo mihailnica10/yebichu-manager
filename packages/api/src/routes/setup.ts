@@ -4,13 +4,11 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { eq, getDb, schema } from "@mt5/db";
+import { emitSocketEvent } from "../socket";
 import { getActorId, logAudit } from "../audit";
 import { checkDockerAvailable, checkImageExists } from "../docker";
-
-const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
-const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
-const RUNTIME_DIR = process.env.RUNTIME_DIR || "/opt/mt5-manager/runtime";
-const BRIDGE_SRC = process.env.BRIDGE_SRC || "/opt/mt5-manager/scripts/mt5-bridge";
+import { getContainerId, detectPorts } from "../shared/instance";
+import { INSTANCES_DIR, SHARED_DIR, RUNTIME_DIR, BRIDGE_SRC, ensureInstanceDir, ensureSharedDir } from "../shared/paths";
 
 const StatusResponse = z
   .object({
@@ -19,7 +17,9 @@ const StatusResponse = z
     imageExists: z.boolean(),
     hasManagementInstance: z.boolean(),
     managementInstanceName: z.string().nullable(),
+    managementInstanceRunning: z.boolean(),
     completed: z.boolean(),
+    healthy: z.boolean(),
   })
   .openapi("SetupStatus");
 
@@ -92,9 +92,9 @@ function generateMgmtComposeContent(name: string, password: string): string {
     restart: unless-stopped
     network_mode: bridge
     ports:
-      - 127.0.0.1::5901
-      - 127.0.0.1::6080
-      - 127.0.0.1::8090
+      - 0.0.0.0::5901
+      - 0.0.0.0::6080
+      - 0.0.0.0::8090
     volumes:
       - ${SHARED_DIR}:/mt5-shared
       - ${instDir}/data:/mt5-instance
@@ -116,65 +116,6 @@ function generateMgmtComposeContent(name: string, password: string): string {
     stdin_open: true
     tty: true
 `;
-}
-
-function getContainerId(name: string): string {
-  try {
-    return execSync(`docker inspect --format '{{.Id}}' ${name}`, { encoding: "utf-8" }).trim();
-  } catch {
-    return name;
-  }
-}
-
-async function detectPortsForInstance(name: string) {
-  try {
-    const db = getDb();
-    const inst = await db
-      .select()
-      .from(schema.instances)
-      .where(eq(schema.instances.name, name))
-      .get();
-    if (!inst) return null;
-
-    let config: Record<string, any> = {};
-    try {
-      config = JSON.parse(inst.configJson || "{}");
-    } catch {}
-
-    try {
-      const vncPortInfo = execSync(`docker port ${name} 5901/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const vncPort = Number.parseInt(vncPortInfo.trim());
-      if (!Number.isNaN(vncPort)) config.vncPort = vncPort;
-    } catch {}
-
-    try {
-      const wsPortInfo = execSync(`docker port ${name} 6080/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const wsPort = Number.parseInt(wsPortInfo.trim());
-      if (!Number.isNaN(wsPort)) config.wsPort = wsPort;
-    } catch {}
-
-    try {
-      const bridgePortInfo = execSync(`docker port ${name} 8090/tcp | head -1 | sed 's/.*://'`, {
-        encoding: "utf-8",
-      });
-      const bridgePort = Number.parseInt(bridgePortInfo.trim());
-      if (!Number.isNaN(bridgePort)) config.bridgePort = bridgePort;
-    } catch {}
-
-    await db
-      .update(schema.instances)
-      .set({ configJson: JSON.stringify(config), updatedAt: new Date() })
-      .where(eq(schema.instances.name, name))
-      .run();
-
-    return config;
-  } catch {
-    return null;
-  }
 }
 
 export function setupRoutes(app: OpenAPIHono) {
@@ -201,13 +142,29 @@ export function setupRoutes(app: OpenAPIHono) {
     const hasManagementInstance = !!mgmtInstance;
     const managementInstanceName = mgmtInstance?.name ?? null;
 
+    let managementInstanceRunning = false;
+    if (hasManagementInstance && mgmtInstance) {
+      try {
+        const state = execSync(`docker inspect --format '{{.State.Status}}' ${mgmtInstance.name}`, {
+          encoding: "utf-8",
+        }).trim();
+        managementInstanceRunning = state === "running";
+      } catch {
+        managementInstanceRunning = false;
+      }
+    }
+
+    const healthy = completed && managementInstanceRunning;
+
     return c.json({
       hasUsers,
       dockerAvailable,
       imageExists,
       hasManagementInstance,
       managementInstanceName,
+      managementInstanceRunning,
       completed,
+      healthy,
     });
   });
 
@@ -265,6 +222,7 @@ export function setupRoutes(app: OpenAPIHono) {
     }
 
     const name = "mt5-mgmt";
+    const host = process.env.HOST || "localhost";
     const db = getDb();
 
     const existing = await db
@@ -280,7 +238,18 @@ export function setupRoutes(app: OpenAPIHono) {
         }).trim();
         if (state === "running") {
           // Container running — detect ports and return info
-          const config = (await detectPortsForInstance(name)) || {};
+          const config = (await detectPorts(name)) || {};
+          emitSocketEvent("mgmt:status", {
+            name,
+            status: "running",
+            containerRunning: true,
+            containerId: existing.containerId,
+            wsPort: config.wsPort,
+            vncPort: config.vncPort,
+            bridgePort: config.bridgePort,
+            vncPassword: config.password,
+            wsUrl: config.wsPort ? `http://${host}:${config.wsPort}` : undefined,
+          });
           return c.json(
             {
               name,
@@ -308,12 +277,8 @@ export function setupRoutes(app: OpenAPIHono) {
     if (existsSync(instDir)) {
       execSync(`rm -rf ${instDir}`, { stdio: "ignore" });
     }
-    mkdirSync(`${instDir}/data`, { recursive: true });
-    mkdirSync(`${instDir}/wine`, { recursive: true });
-
-    if (!existsSync(SHARED_DIR)) {
-      mkdirSync(SHARED_DIR, { recursive: true });
-    }
+    ensureInstanceDir(instDir);
+    ensureSharedDir();
 
     const password = randomBytes(8).toString("hex");
     const composeContent = generateMgmtComposeContent(name, password);
@@ -345,15 +310,26 @@ export function setupRoutes(app: OpenAPIHono) {
       .values({ name, status: "running", containerId, isManagement: 1 })
       .run();
 
-    let config = (await detectPortsForInstance(name)) || {};
+    let config = (await detectPorts(name)) || {};
     let portDetectionAttempts = 0;
     while (!config.wsPort && portDetectionAttempts < 10) {
       await new Promise(r => setTimeout(r, 1000));
-      const updated = await detectPortsForInstance(name);
+      const updated = await detectPorts(name);
       if (updated) config = updated;
       portDetectionAttempts++;
     }
     config.password = password;
+    emitSocketEvent("mgmt:status", {
+      name,
+      status: "running",
+      containerRunning: true,
+      containerId,
+      wsPort: config.wsPort,
+      vncPort: config.vncPort,
+      bridgePort: config.bridgePort,
+      vncPassword: password,
+      wsUrl: config.wsPort ? `http://${host}:${config.wsPort}` : undefined,
+    });
     await db
       .update(schema.instances)
       .set({
@@ -364,8 +340,6 @@ export function setupRoutes(app: OpenAPIHono) {
       .run();
 
     await logAudit("management_instance_create", actorId, "instance", name, { name });
-
-    const host = process.env.HOST || "localhost";
 
     return c.json(
       {

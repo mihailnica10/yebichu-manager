@@ -5,6 +5,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { and, eq, getDb, schema } from "@mt5/db";
 import { getActorId, logAudit } from "../audit";
+import { INSTANCES_DIR, SHARED_DIR } from "../shared/paths";
 
 const TemplateSchema = z
   .object({
@@ -32,9 +33,6 @@ const UpdateTemplateBody = z.object({
 const ApplyTemplateBody = z.object({
   instanceNames: z.array(z.string().min(1)),
 });
-
-const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
-const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
 
 const listRoute = createRoute({
   method: "get",

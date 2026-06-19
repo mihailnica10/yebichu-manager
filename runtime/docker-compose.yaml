@@ -1,5 +1,5 @@
 x-mt5-common: &mt5-common
-  image: mt5-tigervnc:latest
+  image: yebichu-metatrader5-algotrading:latest
   restart: unless-stopped
   networks:
     - mt5-net
@@ -72,37 +72,37 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/shared
+      device: /home/misu/mt5/shared
       o: bind
   mt5-instance-data:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/instances/mt5/data
+      device: /home/misu/mt5/instances/mt5/data
       o: bind
   mt5-wine:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/instances/mt5/wine
+      device: /home/misu/mt5/instances/mt5/wine
       o: bind
   mt5-instance2-data:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/instances/mt5-2/data
+      device: /home/misu/mt5/instances/mt5-2/data
       o: bind
   mt5-instance2-wine:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/instances/mt5-2/wine
+      device: /home/misu/mt5/instances/mt5-2/wine
       o: bind
   mt5-minio-data:
     driver: local
     driver_opts:
       type: none
-      device: /root/mt5/minio
+      device: /home/misu/mt5/minio
       o: bind
 
 networks:

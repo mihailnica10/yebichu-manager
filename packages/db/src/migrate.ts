@@ -1,6 +1,6 @@
 import { createClient } from "@libsql/client";
 
-const DB_PATH = process.env.DB_PATH || "/root/mt5/mt5.db";
+const DB_PATH = process.env.DB_PATH || "/home/misu/mt5/mt5.db";
 
 const tables = [
   `CREATE TABLE IF NOT EXISTS users (

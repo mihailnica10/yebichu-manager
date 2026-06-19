@@ -8,19 +8,19 @@ services:
     networks:
       - mt5-net
     environment:
-      - INSTANCES_DIR=/root/mt5/instances
-      - SHARED_DIR=/root/mt5/shared
-      - ENV_FILE=/root/mt5/.env
+      - INSTANCES_DIR=/home/misu/mt5/instances
+      - SHARED_DIR=/home/misu/mt5/shared
+      - ENV_FILE=/home/misu/mt5/.env
       - HOST_IP=178.105.53.57
       - HOST=178.105.53.57
       - HOST_PROC=/host/proc
       - PORT=3001
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /root/mt5:/root/mt5
+      - /home/misu/mt5:/home/misu/mt5
       - /proc:/host/proc:ro
       - /usr/bin/docker:/usr/bin/docker:ro
-      - /root/.docker/cli-plugins:/root/.docker/cli-plugins:ro
+      - /home/misu/.docker/cli-plugins:/home/misu/.docker/cli-plugins:ro
       - /usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu:ro
       - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
 

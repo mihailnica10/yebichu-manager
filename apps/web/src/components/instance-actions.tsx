@@ -39,13 +39,16 @@ function useInstanceAction(name: string, action: string, successMsg: string) {
     mutationFn: async () => {
       await api.post(`/instances/${name}/${action}`);
     },
-    onSuccess: () => {
+    onMutate: () => {
+      return { toastId: toast.loading(`${action}...`) };
+    },
+    onSuccess: (_data, _vars, ctx) => {
       qc.invalidateQueries({ queryKey: ["instance", name] });
       qc.invalidateQueries({ queryKey: ["instances"] });
-      toast.success(successMsg);
+      toast.success(successMsg, { id: ctx?.toastId });
     },
-    onError: (err: Error) => {
-      toast.error(err.message);
+    onError: (err: Error, _vars, ctx) => {
+      toast.error(err.message, { id: ctx?.toastId });
     },
   });
 }
@@ -101,7 +104,7 @@ export function InstanceActions({
                 size="sm"
                 variant="outline"
                 onClick={() => restartMut.mutate()}
-                disabled={restartMut.isPending}
+                disabled={restartMut.isPending || !containerRunning}
               >
                 <RotateCcwIcon /> Restart
               </Button>
@@ -167,7 +170,7 @@ export function InstanceActions({
     <ActionsDialog
       title={name}
       trigger={
-        <Button variant="outline" size="sm" className="h-7 w-7 p-0">
+        <Button variant="outline" size="sm" className="h-7 w-7 p-0 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-all">
           <Settings2Icon className="size-3" />
         </Button>
       }

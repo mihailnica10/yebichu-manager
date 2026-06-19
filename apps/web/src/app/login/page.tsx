@@ -1,5 +1,6 @@
 "use client";
 import { LoginForm } from "@/components/login-form";
+import { Spinner } from "@/components/ui/spinner";
 import { useAuthSession } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
@@ -12,17 +13,34 @@ export default function LoginPage() {
   useEffect(() => {
     if (isLoading) return;
     if (user) {
-      router.push("/instances");
-      return;
+      const ac = new AbortController();
+      api.get("/setup/status", { signal: ac.signal }).then((res) => {
+        if (!res.data.healthy) {
+          router.replace("/setup");
+        } else {
+          router.push("/instances");
+        }
+      }).catch(() => {});
+      return () => ac.abort();
     }
-    api.get("/setup/status").then((res) => {
-      if (!res.data.completed && !res.data.hasUsers) {
+    const ac = new AbortController();
+    api.get("/setup/status", { signal: ac.signal }).then((res) => {
+      if (!res.data.healthy) {
         router.replace("/setup");
       }
     }).catch(() => {});
+    return () => ac.abort();
   }, [user, isLoading, router]);
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="relative flex w-full min-h-svh flex-col items-center justify-center gap-6 overflow-hidden bg-background p-4 md:p-10">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom_right,color-mix(in_oklch,var(--primary)_4%,transparent),transparent_40%,color-mix(in_oklch,var(--primary)_3%,transparent)_70%,transparent)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.015)_1px,transparent_1px)] bg-[length:48px_48px]" />
+        <Spinner />
+      </div>
+    );
+  }
   if (user) return null;
 
   return (

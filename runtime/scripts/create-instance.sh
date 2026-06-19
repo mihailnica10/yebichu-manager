@@ -11,7 +11,7 @@ if [ -z "$NAME" ] || [ -z "$OFFSET" ]; then
     exit 1
 fi
 
-MT5_DIR="/root/mt5"
+MT5_DIR="/home/misu/mt5"
 INSTANCE_DIR="$MT5_DIR/instances/$NAME"
 COMPOSE_FILE="$MT5_DIR/docker-compose.yaml"
 

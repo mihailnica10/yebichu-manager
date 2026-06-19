@@ -11,9 +11,10 @@ SHARED_DIR="/mt5-shared/MetaTrader 5"
 INSTANCE_DIR="/mt5-instance"
 
 export HOME=/root
-export DISPLAY=:1
+export WINEDLLOVERRIDES="mscoree=,mshtml=,ucrtbase=n"
+export WINEDEBUG=-all
 
-echo "[ENTRYPOINT] Starting MT5 instance: $MT5_INSTANCE_NAME"
+echo "[ENTRYPOINT] Starting yebichu MT5 instance: $MT5_INSTANCE_NAME"
 
 wait_for_process() {
     local process_name="$1"
@@ -29,9 +30,10 @@ wait_for_process() {
 }
 
 wait_for_x11() {
-    local timeout="${1:-10}"
+    local display_num="${1:-99}"
+    local timeout="${2:-10}"
     for i in $(seq 1 "$timeout"); do
-        if [ -e /tmp/.X11-unix/X1 ] && xdpyinfo -display :1 > /dev/null 2>&1; then
+        if [ -e /tmp/.X11-unix/X${display_num} ] && xdpyinfo -display :${display_num} > /dev/null 2>&1; then
             return 0
         fi
         sleep 1
@@ -44,13 +46,76 @@ rm -f /var/run/dbus/* /var/run/messagebus.*
 dbus-daemon --system &
 wait_for_process dbus-daemon 5
 
-rm -f /tmp/.X1-lock /tmp/.X11-unix/X1
-Xvnc :1 -geometry ${VNC_GEOMETRY:-1280x720} -depth 24 -SecurityTypes None -rfbport 5901 &
-wait_for_x11 10
+VNC_DISPLAY_FILE="/tmp/vnc_display"
+VNC_LOG_FILE="/tmp/vnc.log"
+PREFERRED_VNC_DISPLAY=99
+
+rm -f /tmp/.X${PREFERRED_VNC_DISPLAY}-lock /tmp/.X11-unix/X${PREFERRED_VNC_DISPLAY}
+rm -f "$VNC_DISPLAY_FILE" "$VNC_LOG_FILE"
+
+Xvnc :${PREFERRED_VNC_DISPLAY} -geometry ${VNC_GEOMETRY:-1280x720} -depth 24 -SecurityTypes None -rfbport 5901 > "$VNC_LOG_FILE" 2>&1 &
+sleep 2
+
+if grep -q "started on display" "$VNC_LOG_FILE" 2>/dev/null; then
+    VNC_ACTUAL_DISPLAY=$(grep "started on display" "$VNC_LOG_FILE" | sed 's/.*started on display //' | tr -d ':[:space:]')
+    echo "$VNC_ACTUAL_DISPLAY" > "$VNC_DISPLAY_FILE"
+    export DISPLAY=":$VNC_ACTUAL_DISPLAY"
+    echo "[ENTRYPOINT] Xvnc started on display :$VNC_ACTUAL_DISPLAY"
+else
+    export DISPLAY=":${PREFERRED_VNC_DISPLAY}"
+    echo "${PREFERRED_VNC_DISPLAY}" > "$VNC_DISPLAY_FILE"
+    echo "[ENTRYPOINT] Xvnc started on preferred display :${PREFERRED_VNC_DISPLAY}"
+fi
+
+wait_for_x11 "${DISPLAY#:}" 10
 
 export $(dbus-launch)
-startxfce4 &
-wait_for_process xfce4-panel 10
+
+# Window manager + desktop (no xfce4-session, no panel)
+xfwm4 --replace &
+xfdesktop &
+wait_for_process xfdesktop 10
+
+# Apply xfwm4 settings: single workspace, no scroll/wrap, Daloa theme, no compositing
+xfconf-query -c xfwm4 -p /general/workspace_count -s 1 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/scroll_workspaces -s false 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/wrap_workspaces -s false 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/wrap_cycle -s false 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/zoom_desktop -s false 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/theme -s "Daloa" 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/use_compositing -s false 2>/dev/null || true
+
+# Disable winemenubuilder in Wine registry to prevent auto-placed .desktop files
+wine reg add "HKCU\\Software\\Wine\\Winemenubuilder" /v Disabled /d 1 /f 2>/dev/null || true
+wineserver -w 2>/dev/null
+
+# Clean up auto-placed .desktop files (MetaTrader installer drops its own)
+rm -f "/root/Desktop/MetaTrader 5.desktop" \
+      "/root/Desktop/MetaEditor 5.desktop" \
+      "/root/Desktop/Uninstall MetaTrader 5.desktop"
+
+# Write a clean icons config — only the mt5 shortcut, no / or /root
+mkdir -p /root/.config/xfce4/desktop
+cat > /root/.config/xfce4/desktop/icons.screen0.rc << 'EOF'
+[xfdesktop-version-4.10.3+-rcfile_format]
+4.10.3+=true
+
+[/root/Desktop/mt5.desktop]
+row=0
+col=0
+EOF
+
+# Remove any lingering File System / Home icon entries from old icons configs
+for f in /root/.config/xfce4/desktop/icons.screen0*.rc /root/.config/xfce4/desktop/icons.screen.latest.rc; do
+    if [ -f "$f" ]; then
+        sed -i '/^\[file/d' "$f" 2>/dev/null || true
+    fi
+done
+
+rm -f /root/.config/xfce4/desktop/icons.screen.latest.rc
+rm -f /root/.config/xfce4/desktop/icons.screen0-*.rc
+ln -s /root/.config/xfce4/desktop/icons.screen0.rc \
+      /root/.config/xfce4/desktop/icons.screen.latest.rc
 
 websockify 6080 localhost:5901 &
 echo "[ENTRYPOINT] websockify on :6080"
@@ -61,6 +126,14 @@ echo "[ENTRYPOINT] Xvnc + Xfce4 started"
 if [ -f /usr/local/bin/init-wine.sh ]; then
     /usr/local/bin/init-wine.sh 2>&1 | sed 's/^/[INIT-WINE] /'
 fi
+
+# Re-apply winemenubuilder disable after init-wine
+wine reg add "HKCU\\Software\\Wine\\Winemenubuilder" /v Disabled /d 1 /f 2>/dev/null || true
+wine reg delete "HKCU\\Software\\Wine\\DllOverrides" /v ucrtbase /f 2>/dev/null || true
+wine reg delete "HKCU\\Software\\Wine\\DllOverrides" /v api-ms-win-crt-private-l1-1-0 /f 2>/dev/null || true
+# Disable Wine crash dialog (winedbg) so crashed processes terminate cleanly
+wine reg add "HKCU\\Software\\Wine\\WineDbg" /v ShowCrashDialog /d 0 /f 2>/dev/null || true
+wine reg add "HKCU\\Software\\Wine\\WineDbg" /v Debugger /d "" /f 2>/dev/null || true
 
 if [ ! -d "$MT5_DIR" ]; then
     mkdir -p "$MT5_DIR"
@@ -144,8 +217,7 @@ fi
 if [ "$MANAGEMENT_MODE" = "true" ]; then
   echo "[ENTRYPOINT] Management mode — isolated workspace"
 
-  # Remove symlinks created above and replace with real directories so that
-  # subsequent seeding writes into instance-local storage, not into the shared dir.
+  # Remove symlinks created above and replace with real directories
   for dir in "MQL5/Experts" "MQL5/Indicators" "MQL5/Include" "MQL5/Libraries" "MQL5/Scripts" "MQL5/Services" "MQL5/Presets" "MQL5/Images" "MQL5/Profiles" "Profiles"; do
     if [ -L "$MT5_DIR/$dir" ]; then
       target=$(readlink "$MT5_DIR/$dir")
@@ -174,12 +246,30 @@ if [ "$MANAGEMENT_MODE" != "true" ] && [ "$ENABLE_FILEBROWSER" = "true" ]; then
     echo "[ENTRYPOINT] Filebrowser on :8080"
 fi
 
+if [ ! -f "$MT5_DIR/terminal64.exe" ]; then
+    echo "[ENTRYPOINT] MT5 not installed. Installing..."
+    if [ -f /tmp/mt5setup.exe ]; then
+        echo "[ENTRYPOINT] Running cached installer..."
+    else
+        echo "[ENTRYPOINT] Downloading MT5 installer..."
+        curl -sL -o /tmp/mt5setup.exe \
+            "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe"
+    fi
+    wine /tmp/mt5setup.exe /auto 2>/dev/null || true
+    wineserver -w 2>/dev/null
+    rm -f /tmp/mt5setup.exe
+    # Re-clean after install (MT5 installer drops more .desktop files)
+    rm -f "/root/Desktop/MetaTrader 5.desktop" \
+          "/root/Desktop/MetaEditor 5.desktop" \
+          "/root/Desktop/Uninstall MetaTrader 5.desktop"
+    echo "[ENTRYPOINT] MT5 installation complete"
+fi
+
+# Auto-start MT5
 if [ -f "$MT5_DIR/terminal64.exe" ]; then
-    [ -f /etc/mt5/mt5cfg.ini ] && cp /etc/mt5/mt5cfg.ini "$MT5_DIR/" 2>/dev/null || true
     echo "[ENTRYPOINT] Starting MT5..."
     cd "$MT5_DIR"
     wine terminal64.exe /portable /withdrawal:disabled &
-
     for i in $(seq 1 30); do
         if pgrep -f "terminal64.exe" > /dev/null 2>&1; then
             echo "[ENTRYPOINT] MT5 terminal is running"
@@ -187,42 +277,64 @@ if [ -f "$MT5_DIR/terminal64.exe" ]; then
         fi
         sleep 1
     done
-    if ! pgrep -f "terminal64.exe" > /dev/null 2>&1; then
-        echo "[WARN] MT5 terminal did not start within 30 seconds"
-    fi
 fi
-
-sleep 4 && pgrep -f terminal64.exe > /dev/null && \
-  xdotool search --name "MetaTrader 5" windowactivate 2>/dev/null || true &
 
 if [ "$ENABLE_API" = "true" ] && [ -f /mt5-bridge/main.py ]; then
     echo "[ENTRYPOINT] Starting rpyc server on port 18812..."
-    wine python -m rpyc.cli.rpyc_classic --host 0.0.0.0 --port 18812 > /dev/null 2>&1 &
+    PYTHON_EXE="/config/.wine/drive_c/users/root/AppData/Local/Programs/Python/Python311/python.exe"
+    wine "$PYTHON_EXE" /mt5-bridge/start_rpyc.py 18812 > /tmp/rpyc.stdout.log 2>&1 &
 
     echo "[ENTRYPOINT] Starting MT5 Bridge on port 8090..."
     cd /mt5-bridge
-    python3 -m uvicorn main:app --host 0.0.0.0 --port 8090 --reload &
-    sleep 2
-    echo "[ENTRYPOINT] Bridge started (uvicorn --reload)"
+    python3 -m uvicorn main:app --host 0.0.0.0 --port 8090 > /tmp/bridge.stdout.log 2>&1 &
+    echo "[ENTRYPOINT] Bridge starting (uvicorn on :8090)"
 fi
 
 echo "[ENTRYPOINT] All services started. Monitoring..."
 trap "echo '[ENTRYPOINT] Shutting down...'; kill 0; exit 0" SIGTERM SIGINT
 
+# Watchdog: all core services including MT5
 while true; do
     sleep 15
+
+    # Kill stuck Wine debuggers (winedbg) that would otherwise hang processes forever
+    if pgrep -f "winedbg" > /dev/null 2>&1; then
+        pkill -f "winedbg" 2>/dev/null || true
+    fi
+
     if ! pgrep -x "Xvnc" > /dev/null 2>&1; then
         echo "[ENTRYPOINT] Xvnc died, restarting..."
-        Xvnc :1 -geometry ${VNC_GEOMETRY:-1280x720} -depth 24 -SecurityTypes None -rfbport 5901 &
+        VNC_DISP=$(cat "$VNC_DISPLAY_FILE" 2>/dev/null || echo "${PREFERRED_VNC_DISPLAY:-99}")
+        rm -f /tmp/.X${VNC_DISP}-lock /tmp/.X11-unix/X${VNC_DISP}
+        Xvnc :${VNC_DISP} -geometry ${VNC_GEOMETRY:-1280x720} -depth 24 -SecurityTypes None -rfbport 5901 > "$VNC_LOG_FILE" 2>&1 &
     fi
-    if ! pgrep -f "terminal64.exe" > /dev/null 2>&1; then
-        echo "[ENTRYPOINT] MT5 terminal died, restarting..."
-        cd "$MT5_DIR"
-        wine terminal64.exe /portable /withdrawal:disabled &
+    if ! pgrep -f "xfwm4" > /dev/null 2>&1; then
+        echo "[ENTRYPOINT] xfwm4 died, restarting..."
+        xfwm4 --replace &
+    fi
+    if ! pgrep -f "xfdesktop" > /dev/null 2>&1; then
+        echo "[ENTRYPOINT] xfdesktop died, restarting..."
+        xfdesktop &
+    fi
+    if [ -f "$MT5_DIR/terminal64.exe" ]; then
+        if ! pgrep -f "terminal64.exe" > /dev/null 2>&1; then
+            echo "[ENTRYPOINT] MT5 died, restarting..."
+            cd "$MT5_DIR"
+            wine terminal64.exe /portable /withdrawal:disabled &
+        fi
+    fi
+    if ! timeout 1 bash -c 'echo > /dev/tcp/127.0.0.1/18812' 2>/dev/null; then
+        echo "[ENTRYPOINT] rpyc server not responding on :18812, restarting..."
+        # Kill any stale Wine processes (start.exe wrapper, hung winedbg, dead python)
+        pkill -f start_rpyc 2>/dev/null || true
+        pkill -f winedbg 2>/dev/null || true
+        sleep 1
+        PYTHON_EXE="/config/.wine/drive_c/users/root/AppData/Local/Programs/Python/Python311/python.exe"
+        wine "$PYTHON_EXE" /mt5-bridge/start_rpyc.py 18812 > /tmp/rpyc.stdout.log 2>&1 &
     fi
     if ! pgrep -f "uvicorn main:app" > /dev/null 2>&1; then
         echo "[ENTRYPOINT] Bridge died, restarting..."
         cd /mt5-bridge
-        python3 -m uvicorn main:app --host 0.0.0.0 --port 8090 --reload &
+        python3 -m uvicorn main:app --host 0.0.0.0 --port 8090 > /tmp/bridge.stdout.log 2>&1 &
     fi
 done

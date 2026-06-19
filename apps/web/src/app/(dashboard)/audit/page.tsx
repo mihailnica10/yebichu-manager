@@ -1,5 +1,6 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Pagination,
   PaginationContent,
@@ -55,7 +56,7 @@ function actionBadge(action: string) {
 export default function AuditPage() {
   const [offset, setOffset] = useState(0);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["audit-log", offset],
     queryFn: async () => {
       const res = await api.get<AuditResponse>("/audit-log", {
@@ -65,17 +66,39 @@ export default function AuditPage() {
     },
   });
 
-  const liveEntries = useAuditEntry();
+  const { entries: liveEntries } = useAuditEntry();
   const entries = data?.entries ?? [];
-  const allEntries = [...liveEntries, ...entries];
+  const seenIds = new Set<string | number>();
+  const allEntries = ([...liveEntries, ...entries] as AuditEntry[]).filter((entry) => {
+    if (seenIds.has(entry.id)) return false;
+    seenIds.add(entry.id);
+    return true;
+  });
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-16">
+        <p className="text-destructive">Failed to load audit log</p>
+        <Button variant="outline" onClick={() => refetch()}>Retry</Button>
+      </div>
+    );
+  }
+
   if (isLoading)
     return (
-      <div className="flex justify-center p-8">
-        <Spinner />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-1">
+            <div className="h-7 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-40 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (<div key={i} className="h-10 w-full bg-muted rounded animate-pulse" />))}
+        </div>
       </div>
     );
 

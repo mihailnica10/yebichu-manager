@@ -9,8 +9,8 @@ if [ -z "$NAME" ]; then
     exit 1
 fi
 
-PROFILES_DIR="/root/mt5/profiles"
-SHARED_DIR="/root/mt5/shared/MetaTrader 5"
+PROFILES_DIR="/home/misu/mt5/profiles"
+SHARED_DIR="/home/misu/mt5/shared/MetaTrader 5"
 PROFILE_DIR="$PROFILES_DIR/$NAME"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
@@ -41,14 +41,14 @@ rsync -a "$SHARED_DIR/Profiles/" "$PROFILE_DIR/Profiles/"
 
 echo "Capturing terminal.ini from all instances..."
 mkdir -p "$PROFILE_DIR/Config"
-for inst in /root/mt5/instances/*/data/Config/terminal.ini; do
+for inst in /home/misu/mt5/instances/*/data/Config/terminal.ini; do
     [ -f "$inst" ] || continue
     inst_name=$(basename "$(dirname "$(dirname "$inst")")")
     cp "$inst" "$PROFILE_DIR/Config/terminal.ini.$inst_name"
 done
 
 # Also capture servers.dat (same across instances)
-for inst in /root/mt5/instances/*/data/Config/servers.dat; do
+for inst in /home/misu/mt5/instances/*/data/Config/servers.dat; do
     [ -f "$inst" ] || continue
     cp "$inst" "$PROFILE_DIR/Config/servers.dat"
     break

@@ -10,18 +10,13 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "format": "biome format . --write",
-    "typecheck": "turbo run typecheck",
-    "generate:mt5-client": "bash scripts/generate-mt5-client.sh"
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
-    "@hey-api/openapi-ts": "^0.98.2",
     "@types/node": "^20.17.0",
     "turbo": "^2.9.18",
     "typescript": "^5.8.0",
     "drizzle-kit": "^0.30.0"
-  },
-  "dependencies": {
-    "socket.io": "4.8.3"
   }
 }

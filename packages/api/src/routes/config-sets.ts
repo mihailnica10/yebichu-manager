@@ -13,6 +13,7 @@ import { execSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { setTimeout } from "node:timers/promises";
+import { SHARED_DIR, INSTANCES_DIR } from "../shared/paths";
 
 function emitProgress(opts: {
   operation: "capture" | "load" | "deploy";
@@ -24,9 +25,6 @@ function emitProgress(opts: {
 }) {
   emitSocketEvent("snapshot:progress", opts);
 }
-
-const SHARED_DIR = process.env.SHARED_DIR || "/root/mt5/shared";
-const INSTANCES_DIR = process.env.INSTANCES_DIR || "/root/mt5/instances";
 
 // Schema definitions
 const ConfigSetSchema = z.object({
@@ -235,6 +233,7 @@ export function configSetRoutes(app: OpenAPIHono) {
       .returning()
       .get();
     await logAudit("config_set_create", actorId, "config_set", String(result.id), { name, setType });
+    emitSocketEvent("config-set:created", { id: result.id, name: result.name, setType: result.setType });
     return c.json(result, 201);
   });
 
@@ -267,6 +266,7 @@ export function configSetRoutes(app: OpenAPIHono) {
       .returning()
       .get();
     await logAudit("config_set_update", actorId, "config_set", String(id), { name });
+    emitSocketEvent("config-set:updated", { id, name: body.name || existing.name });
     return c.json(result);
   });
 
@@ -280,6 +280,7 @@ export function configSetRoutes(app: OpenAPIHono) {
     await minioDeleteSet(id);
     await db().delete(schema.configSets).where(eq(schema.configSets.id, id)).run();
     await logAudit("config_set_delete", actorId, "config_set", String(id), {});
+    emitSocketEvent("config-set:deleted", { id });
     return c.json({ status: "deleted" });
   });
 
@@ -491,6 +492,8 @@ export function configSetRoutes(app: OpenAPIHono) {
         createdBy: actorId,
       })
       .run();
+
+    emitSocketEvent("config-set:version-created", { configSetId: id, version: newVersion });
 
     // 8. Update current version on the config set
     await db()

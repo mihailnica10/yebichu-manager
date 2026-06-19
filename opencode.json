@@ -1,0 +1,23 @@
+{
+	"$schema": "https://opencode.ai/config.json",
+	"model": "minimax-coding-plan/MiniMax-M2.7",
+	"permission": "allow",
+	"mcp": {
+		"playwright": {
+			"type": "local",
+			"command": [
+				"bunx",
+				"@playwright/mcp@latest"
+			],
+			"enabled": true
+		},
+		"context7": {
+			"type": "remote",
+			"url": "https://mcp.context7.com/mcp",
+			"headers": {
+				"CONTEXT7_API_KEY": "ctx7sk-47059632-53d9-4376-b84b-200645044d8e"
+			},
+			"enabled": true
+		}
+	}
+}

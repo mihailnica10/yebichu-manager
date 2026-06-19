@@ -2,7 +2,7 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 
-const DB_PATH = process.env.DB_PATH || "/root/mt5/mt5.db";
+const DB_PATH = process.env.DB_PATH || "/home/misu/mt5/mt5.db";
 
 let dbInstance: ReturnType<typeof drizzle> | null = null;
 
